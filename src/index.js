@@ -1,35 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
-import { PlusCircle, Wallet, AlertCircle, Calendar, TrendingDown, TrendingUp, ArrowRight, CheckCircle2, X, Menu, Bell, LayoutDashboard, Settings, PieChart, ArrowUpRight, Search, Mail, HelpCircle, LogOut, ChevronDown, ChevronUp, FileText, RotateCcw, Clock, Target, Loader2 } from 'lucide-react';
+import { PlusCircle, Wallet, AlertCircle, Calendar, TrendingDown, ArrowRight, CheckCircle2, X, Menu, Bell, LayoutDashboard, Settings, PieChart, ArrowUpRight, Search, Mail, HelpCircle, LogOut, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 
-// --- НАСТРОЙКИ FIREBASE (ОБЛАКО) ---
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
-
-// Ваши ключи от базы данных
-const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : JSON.stringify({
-  apiKey: "AIzaSyAYNPCG4DHFTAwWkARHGyYmiU0GTklQ6_Q",
-  authDomain: "dashboard-27927.firebaseapp.com",
-  projectId: "dashboard-27927",
-  storageBucket: "dashboard-27927.firebasestorage.app",
-  messagingSenderId: "428248986605",
-  appId: "1:428248986605:web:95b3ccf9ffa65d0e68ade4"
-});
-const firebaseConfig = JSON.parse(firebaseConfigStr);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'dashboard-27927';
-
-// Ловец ошибок
+// Ловец ошибок (чтобы вместо белого экрана видеть причину)
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
   }
-  static getDerivedStateFromError(error) { return { hasError: true, error }; }
-  componentDidCatch(error, errorInfo) { this.setState({ errorInfo }); }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    this.setState({ errorInfo });
+  }
   render() {
     if (this.state.hasError) {
       return (
@@ -46,87 +30,110 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Демонстрационные данные (появятся при первом запуске)
+// Исходные данные для демонстрации
 const initialDebts = [
-  { id: 1, name: 'Сбер (Кредитка)', type: 'credit_card', balance: 85000, rate: 25.9, minPayment: 3500, nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 5)).toISOString().split('T')[0], isPaidThisMonth: false, details: { summary: 'Важно: Снятие наличных отменяет грейс-период.' } },
-  { id: 2, name: 'ВТБ (Кредитка)', type: 'credit_card', balance: 120000, rate: 29.9, minPayment: 5000, nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 12)).toISOString().split('T')[0], isPaidThisMonth: false, details: { summary: 'Минимальный платеж 3% от суммы долга.' } }
+  {
+    id: 1,
+    name: 'Сбер (Кредитка)',
+    type: 'credit_card',
+    balance: 85000,
+    rate: 25.9,
+    minPayment: 3500,
+    nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 5)).toISOString().split('T')[0],
+    isPaidThisMonth: false,
+    details: { gracePeriod: 'до 120 дней', penalty: '36% годовых на сумму просрочки', summary: 'Важно: Грейс-период возобновляется только после полного погашения долга. Снятие наличных отменяет грейс-период и облагается комиссией 390 руб + 3.9%.' }
+  },
+  {
+    id: 2,
+    name: 'ВТБ (Кредитка)',
+    type: 'credit_card',
+    balance: 120000,
+    rate: 29.9,
+    minPayment: 5000,
+    nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 12)).toISOString().split('T')[0],
+    isPaidThisMonth: false,
+    details: { gracePeriod: 'до 200 дней', penalty: '0.1% в день', summary: 'Минимальный платеж 3% от суммы долга. При пропуске платежа льготный период сгорает, начисляются проценты за весь срок.' }
+  },
+  {
+    id: 3,
+    name: 'Альфа (Кредитка)',
+    type: 'credit_card',
+    balance: 45000,
+    rate: 34.9,
+    minPayment: 2000,
+    nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 2)).toISOString().split('T')[0],
+    isPaidThisMonth: false,
+    details: { gracePeriod: 'Год без % (на покупки в первые 30 дней)', penalty: 'Неустойка 20% годовых', summary: 'Ставка 34.9% применяется ко всем покупкам с 31-го дня. Проверьте скрытую страховку (обычно 1.2% в месяц), ее нужно отключить в приложении!' }
+  },
+  {
+    id: 4,
+    name: 'Т-Банк (Кредитка)',
+    type: 'credit_card',
+    balance: 60000,
+    rate: 28.5,
+    minPayment: 3000,
+    nextPaymentDate: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0], 
+    isPaidThisMonth: false,
+    details: { gracePeriod: 'до 55 дней', penalty: '20% годовых + штраф 590 руб', summary: 'Штраф за неоплату минимального платежа фиксированный: 590 рублей. Часто включено SMS-информирование (99 руб/мес).' }
+  },
+  {
+    id: 5,
+    name: 'ОТП Банк (Кредит)',
+    type: 'loan',
+    balance: 250000,
+    rate: 18.0,
+    minPayment: 12500,
+    nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 20)).toISOString().split('T')[0],
+    isPaidThisMonth: false,
+    details: { penalty: '0.1% в день', summary: 'Потребительский кредит. Досрочное погашение возможно в любую дату без штрафов через приложение. Перерасчет графика происходит автоматически (выгоднее уменьшать срок, а не платеж).' }
+  },
+  {
+    id: 6,
+    name: 'Яндекс (Кредит)',
+    type: 'loan',
+    balance: 150000,
+    rate: 21.5,
+    minPayment: 8500,
+    nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().split('T')[0],
+    isPaidThisMonth: false,
+    details: { penalty: '20% годовых от суммы просрочки', summary: 'Досрочное погашение списывается только в дату регулярного платежа. Нужно подавать заявку заранее.' }
+  },
+  {
+    id: 7,
+    name: 'Яндекс Сплит (Рассрочка)',
+    type: 'installment',
+    balance: 25000,
+    rate: 0,
+    minPayment: 6250,
+    nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 4)).toISOString().split('T')[0],
+    isPaidThisMonth: false,
+    details: { penalty: 'Единоразовый штраф', summary: 'Классический Сплит. Процентов нет. В случае просрочки взимается разовая комиссия и блокируется лимит на будущие покупки.' }
+  }
 ];
 
 function App() {
-  // Навигация
-  const [activeTab, setActiveTab] = useState('dashboard');
-  
-  // Состояния синхронизации с облаком
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [debts, setDebts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('myDebts');
+      return saved ? JSON.parse(saved) : initialDebts;
+    } catch (e) {
+      return initialDebts;
+    }
+  });
 
-  // Данные приложения
-  const [debts, setDebts] = useState([]);
   const [freeMoney, setFreeMoney] = useState(15000);
   const [strategy, setStrategy] = useState('avalanche');
-  
-  // UI Состояния
   const [expandedId, setExpandedId] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-
   const [newDebt, setNewDebt] = useState({
     name: '', type: 'loan', balance: '', rate: '', minPayment: '', nextPaymentDate: '', detailsSummary: ''
   });
 
-  // Инициализация Авторизации Firebase
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (error) {
-        console.error("Auth error:", error);
-      }
-    };
-    initAuth();
-    const unsubscribe = onAuthStateChanged(auth, setUser);
-    return () => unsubscribe();
-  }, []);
+    localStorage.setItem('myDebts', JSON.stringify(debts));
+  }, [debts]);
 
-  // Загрузка и синхронизация данных из Firestore
-  useEffect(() => {
-    if (!user) return;
-    // Путь к вашему "сейфу" в базе данных
-    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'appState', 'main');
-    
-    // onSnapshot - это магия Firebase: слушает изменения в реальном времени
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setDebts(data.debts || []);
-        setFreeMoney(data.freeMoney || 15000);
-        setStrategy(data.strategy || 'avalanche');
-      } else {
-        // Если базы еще нет, создаем ее с начальными данными
-        setDoc(docRef, { debts: initialDebts, freeMoney: 15000, strategy: 'avalanche' });
-      }
-      setIsLoading(false);
-    }, (err) => {
-      console.error("Ошибка загрузки данных:", err);
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  // Функция для отправки изменений в облако
-  const updateCloud = (newDebts, newFreeMoney, newStrategy) => {
-    if (!user) return;
-    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'appState', 'main');
-    setDoc(docRef, { debts: newDebts, freeMoney: Number(newFreeMoney), strategy: newStrategy }, { merge: true });
-  };
-
-  // Хелперы для дат
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -138,42 +145,17 @@ function App() {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  const formatMoney = (amount) => {
-    return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(amount || 0);
-  };
-
-  // Базовые вычисления
   const totalDebt = debts.reduce((sum, d) => sum + Number(d.balance || 0), 0);
-  const totalMinPaymentAll = debts.reduce((sum, d) => sum + Number(d.minPayment || 0), 0);
-  const totalMinPaymentRemaining = debts.reduce((sum, d) => sum + (d.isPaidThisMonth ? 0 : Number(d.minPayment || 0)), 0);
-  const paidThisMonthAmount = debts.filter(d => d.isPaidThisMonth).reduce((sum, d) => sum + Number(d.minPayment || 0), 0);
-  const progressPercent = totalMinPaymentAll === 0 ? 0 : Math.round((paidThisMonthAmount / totalMinPaymentAll) * 100);
+  const totalMinPayment = debts.reduce((sum, d) => sum + (d.isPaidThisMonth ? 0 : Number(d.minPayment || 0)), 0);
   
-  const circleCircumference = 351.8;
-  const circleDashoffset = circleCircumference - (progressPercent / 100) * circleCircumference;
-
   const overdueDebts = debts.filter(d => !d.isPaidThisMonth && getDaysDiff(d.nextPaymentDate) < 0);
   const totalOverdue = overdueDebts.reduce((sum, d) => sum + Number(d.minPayment || 0), 0);
 
-  // Сортировка для дашборда (сначала срочные)
   const sortedDebts = [...debts].sort((a, b) => {
     if (a.isPaidThisMonth !== b.isPaidThisMonth) return a.isPaidThisMonth ? 1 : -1;
     return new Date(a.nextPaymentDate || 0) - new Date(b.nextPaymentDate || 0);
   });
 
-  // Уведомления
-  const notifications = useMemo(() => {
-    const alerts = [];
-    overdueDebts.forEach(d => {
-      alerts.push({ id: `over_${d.id}`, type: 'error', title: 'Просрочка', text: `Платеж ${formatMoney(d.minPayment)} по "${d.name}" просрочен!` });
-    });
-    debts.filter(d => !d.isPaidThisMonth && getDaysDiff(d.nextPaymentDate) >= 0 && getDaysDiff(d.nextPaymentDate) <= 3).forEach(d => {
-      alerts.push({ id: `warn_${d.id}`, type: 'warning', title: 'Скоро платеж', text: `По "${d.name}" нужно внести ${formatMoney(d.minPayment)} в течение ${getDaysDiff(d.nextPaymentDate)} дн.` });
-    });
-    return alerts;
-  }, [debts, overdueDebts]);
-
-  // Распределение свободных денег
   const strategyAllocation = useMemo(() => {
     let remainingMoney = Number(freeMoney) || 0;
     const allocation = {};
@@ -198,37 +180,14 @@ function App() {
     return allocation;
   }, [debts, freeMoney, strategy]);
 
-  // Действия (с отправкой в облако)
   const handleMarkPaid = (id) => {
-    const newDebts = debts.map(d => {
+    setDebts(debts.map(d => {
       if (d.id === id) {
         const newBalance = Math.max(0, d.balance - (d.minPayment || 0));
-        return { ...d, isPaidThisMonth: true, balance: newBalance, _prevBalance: d.balance };
+        return { ...d, isPaidThisMonth: true, balance: newBalance };
       }
       return d;
-    });
-    setDebts(newDebts);
-    updateCloud(newDebts, freeMoney, strategy);
-  };
-
-  const handleUndoPaid = (id) => {
-    const newDebts = debts.map(d => {
-      if (d.id === id) {
-        const restoredBalance = d._prevBalance !== undefined ? d._prevBalance : d.balance + (d.minPayment || 0);
-        return { ...d, isPaidThisMonth: false, balance: restoredBalance };
-      }
-      return d;
-    });
-    setDebts(newDebts);
-    updateCloud(newDebts, freeMoney, strategy);
-  };
-
-  const handleResetMonth = () => {
-    if (window.confirm('Вы уверены, что хотите начать новый месяц? Все статусы "Оплачено" будут сброшены.')) {
-      const newDebts = debts.map(d => ({ ...d, isPaidThisMonth: false }));
-      setDebts(newDebts);
-      updateCloud(newDebts, freeMoney, strategy);
-    }
+    }));
   };
 
   const handleAddDebt = (e) => {
@@ -240,510 +199,18 @@ function App() {
       isPaidThisMonth: false,
       details: { summary: newDebt.detailsSummary || 'Нет сохраненных условий.' }
     };
-    const newDebts = [...debts, debtToAdd];
-    setDebts(newDebts);
-    updateCloud(newDebts, freeMoney, strategy);
+    setDebts([...debts, debtToAdd]);
     setIsAddModalOpen(false);
     setNewDebt({ name: '', type: 'loan', balance: '', rate: '', minPayment: '', nextPaymentDate: '', detailsSummary: '' });
   };
 
   const handleDeleteDebt = (id) => {
-    if (window.confirm('Точно удалить этот долг?')) {
-      const newDebts = debts.filter(d => d.id !== id);
-      setDebts(newDebts);
-      updateCloud(newDebts, freeMoney, strategy);
-    }
+    setDebts(debts.filter(d => d.id !== id));
   };
 
-  // ЭКРАН ЗАГРУЗКИ (Пока данные едут из Firebase)
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#F4F6F8] flex flex-col items-center justify-center text-[#106A3C]">
-        <Loader2 className="w-12 h-12 animate-spin mb-4" />
-        <h2 className="text-xl font-bold text-gray-900 tracking-tight">Подключение к облаку...</h2>
-        <p className="text-sm text-gray-500 mt-2">Синхронизация ваших данных</p>
-      </div>
-    );
-  }
-
-  // --- КОМПОНЕНТЫ ЭКРАНОВ --- //
-
-  const renderDashboard = () => (
-    <>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-[#106A3C] rounded-[24px] p-5 md:p-6 text-white relative shadow-md shadow-[#106A3C]/10 flex flex-col justify-between">
-          <div>
-            <p className="text-white/80 text-sm font-medium">Общий долг</p>
-            <h2 className="text-2xl md:text-3xl font-bold mt-2 tracking-tight">{formatMoney(totalDebt)}</h2>
-          </div>
-          <div className="absolute top-5 right-5 bg-white/20 p-1.5 md:p-2 rounded-full">
-            <ArrowUpRight size={18} className="text-white" />
-          </div>
-          <div className="mt-4 bg-white/10 w-max px-3 py-1 rounded-lg text-xs flex items-center gap-1.5 backdrop-blur-sm">
-            <span>Осталось {debts.length} шт.</span>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-[24px] p-5 md:p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] flex flex-col justify-between relative">
-          <div>
-            <p className="text-gray-500 text-sm font-medium">Осталось оплатить</p>
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mt-2 tracking-tight">{formatMoney(totalMinPaymentRemaining)}</h2>
-          </div>
-          <div className="absolute top-5 right-5 border border-gray-100 p-1.5 md:p-2 rounded-full text-gray-400">
-            <ArrowUpRight size={18} />
-          </div>
-          <div className="mt-4 text-xs text-gray-500 flex items-center gap-1.5">
-            Из {formatMoney(totalMinPaymentAll)} в этом месяце
-          </div>
-        </div>
-
-        <div className="bg-white rounded-[24px] p-5 md:p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] flex flex-col justify-between relative">
-          <div>
-            <p className="text-gray-500 text-sm font-medium">Просрочено</p>
-            <h2 className={`text-2xl md:text-3xl font-bold mt-2 tracking-tight ${totalOverdue > 0 ? 'text-red-500' : 'text-gray-900'}`}>
-              {formatMoney(totalOverdue)}
-            </h2>
-          </div>
-          <div className="absolute top-5 right-5 border border-gray-100 p-1.5 md:p-2 rounded-full text-gray-400">
-            <AlertCircle size={18} className={totalOverdue > 0 ? 'text-red-400' : ''} />
-          </div>
-          <div className="mt-4 text-xs flex items-center gap-1.5">
-            {totalOverdue > 0 
-              ? <span className="bg-red-50 text-red-600 px-2 py-1 rounded-md font-medium">{overdueDebts.length} платежей требуют внимания</span>
-              : <span className="text-emerald-600 font-medium bg-emerald-50 px-2 py-1 rounded-md">Всё по графику</span>
-            }
-          </div>
-        </div>
-
-        <div className="bg-white rounded-[24px] p-5 md:p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
-          <label className="text-gray-500 text-sm font-medium">Свободные средства</label>
-          <div className="relative mt-2">
-            <input 
-              type="number" 
-              value={freeMoney} 
-              onChange={(e) => setFreeMoney(e.target.value)}
-              // Сохраняем в облако только когда убрали курсор из поля (чтобы не спамить базу данных)
-              onBlur={() => updateCloud(debts, freeMoney, strategy)}
-              className="w-full bg-transparent text-2xl md:text-3xl font-bold text-[#106A3C] border-b-2 border-gray-100 focus:border-[#106A3C] outline-none pb-1 transition-colors"
-            />
-          </div>
-          <div className="mt-4 text-xs text-gray-500">
-            ₽ для стратегии досрочки
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-[24px] p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)]">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-            <h3 className="text-lg font-bold text-gray-900">Ближайшие платежи</h3>
-            <div className="flex gap-2">
-              <button 
-                onClick={handleResetMonth}
-                className="text-xs font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-full hover:bg-gray-100 hover:text-gray-900 transition-colors flex items-center gap-1.5"
-                title="Начать новый месяц (сбросить все галочки 'Оплачено')"
-              >
-                <RotateCcw size={14} /> Новый месяц
-              </button>
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            {sortedDebts.map(debt => {
-              const daysLeft = getDaysDiff(debt.nextPaymentDate);
-              
-              const monthlyInterest = debt.rate > 0 ? (Number(debt.balance || 0) * (Number(debt.rate || 0) / 100)) / 12 : 0;
-              const principalPayment = Math.max(0, Number(debt.minPayment || 0) - monthlyInterest);
-              const totalCurrentDebt = Number(debt.balance || 0) + monthlyInterest;
-              
-              const safeMinPayment = Number(debt.minPayment) || 1;
-              const interestPercent = Math.min(100, (monthlyInterest / safeMinPayment) * 100) || 0;
-              const principalPercent = Math.max(0, 100 - interestPercent);
-
-              let iconColor = "bg-blue-100 text-blue-600";
-              let badgeColor = "bg-blue-50 text-blue-600 border border-blue-100";
-              let statusText = `Осталось ${daysLeft} дн.`;
-              
-              if (debt.isPaidThisMonth) {
-                iconColor = "bg-emerald-100 text-emerald-600";
-                badgeColor = "bg-emerald-50 text-emerald-600 border border-emerald-100";
-                statusText = "Оплачено";
-              } else if (daysLeft < 0) {
-                iconColor = "bg-red-100 text-red-600";
-                badgeColor = "bg-red-50 text-red-600 border border-red-100";
-                statusText = `Просрочка ${Math.abs(daysLeft)} дн.`;
-              } else if (daysLeft === 0) {
-                iconColor = "bg-orange-100 text-orange-600";
-                badgeColor = "bg-orange-50 text-orange-600 border border-orange-100";
-                statusText = "Оплата сегодня";
-              }
-
-              return (
-                <div key={debt.id} className={`flex flex-col rounded-2xl border transition-all ${debt.isPaidThisMonth ? 'border-gray-100 bg-gray-50/50 opacity-70' : 'border-gray-100 hover:shadow-md hover:border-gray-200'}`}>
-                  
-                  <div 
-                    className="flex flex-col sm:flex-row sm:items-center justify-between p-4 cursor-pointer"
-                    onClick={() => setExpandedId(expandedId === debt.id ? null : debt.id)}
-                  >
-                    <div className="flex items-center gap-4 mb-4 sm:mb-0">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${iconColor}`}>
-                        <Wallet size={24} />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                          {debt.name}
-                          {expandedId === debt.id ? <ChevronUp size={16} className="text-gray-400"/> : <ChevronDown size={16} className="text-gray-400"/>}
-                        </h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-500 font-medium">Ставка: {debt.rate}%</span>
-                          <span className="text-gray-300">•</span>
-                          <span className="text-xs text-gray-500 font-medium">Остаток: {formatMoney(debt.balance)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between sm:justify-end gap-4 sm:w-auto w-full">
-                      <div className="text-left sm:text-right">
-                        <p className="text-xs text-gray-400 font-medium mb-1">Платёж</p>
-                        <p className="font-bold text-gray-900">{formatMoney(debt.minPayment)}</p>
-                      </div>
-                      
-                      <div className={`text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap ${badgeColor}`}>
-                        {statusText}
-                      </div>
-
-                      <div className="flex items-center gap-1 border-l border-gray-100 pl-4 ml-2" onClick={e => e.stopPropagation()}>
-                         {debt.isPaidThisMonth ? (
-                           <button 
-                            onClick={() => handleUndoPaid(debt.id)}
-                            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-colors"
-                            title="Отменить платеж (вернуться назад)"
-                          >
-                            <RotateCcw size={18} />
-                          </button>
-                         ) : (
-                          <button 
-                            onClick={() => handleMarkPaid(debt.id)}
-                            className="w-8 h-8 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors"
-                            title="Отметить как оплаченное"
-                          >
-                            <CheckCircle2 size={20} />
-                          </button>
-                         )}
-                         <button 
-                            onClick={() => handleDeleteDebt(debt.id)}
-                            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                            title="Удалить долг"
-                          >
-                            <X size={20} />
-                          </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {expandedId === debt.id && (
-                    <div className="p-4 border-t border-gray-100 bg-[#F8FAFC] rounded-b-2xl cursor-default" onClick={e => e.stopPropagation()}>
-                      
-                      <div className="mb-5 bg-white p-4 rounded-xl border border-gray-100 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)]">
-                        <h6 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-                          <PieChart size={14} className="text-[#106A3C]" />
-                          Экономика на этот месяц
-                        </h6>
-                        
-                        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-5">
-                          <div>
-                            <span className="block text-[10px] sm:text-xs text-gray-400 mb-1">Тело долга</span>
-                            <span className="font-bold text-gray-900 text-sm sm:text-base">{formatMoney(debt.balance)}</span>
-                          </div>
-                          <div className="border-l border-gray-50 pl-2 sm:pl-4">
-                            <span className="block text-[10px] sm:text-xs text-gray-400 mb-1">+ Проценты банку</span>
-                            <span className="font-bold text-red-500 text-sm sm:text-base">{formatMoney(monthlyInterest)}</span>
-                          </div>
-                          <div className="border-l border-gray-50 pl-2 sm:pl-4">
-                            <span className="block text-[10px] sm:text-xs text-gray-400 mb-1">Общий остаток</span>
-                            <span className="font-bold text-[#106A3C] text-sm sm:text-base">{formatMoney(totalCurrentDebt)}</span>
-                          </div>
-                        </div>
-
-                        {Number(debt.rate || 0) > 0 && (
-                          <div className="pt-4 border-t border-gray-50">
-                            <div className="flex justify-between items-end mb-2">
-                              <span className="block text-xs text-gray-500 font-medium">Куда уходит ваш платеж ({formatMoney(debt.minPayment)}):</span>
-                            </div>
-                            <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden flex shadow-inner">
-                              <div className="bg-red-400 h-full transition-all duration-500" style={{ width: `${interestPercent}%` }}></div>
-                              <div className="bg-[#106A3C] h-full transition-all duration-500" style={{ width: `${principalPercent}%` }}></div>
-                            </div>
-                            <div className="flex justify-between mt-2 text-[11px] font-medium">
-                              <span className="text-red-500 flex items-center gap-1">
-                                <div className="w-2 h-2 rounded-full bg-red-400"></div>
-                                {formatMoney(monthlyInterest)} (Проценты)
-                              </span>
-                              <span className="text-[#106A3C] flex items-center gap-1">
-                                <div className="w-2 h-2 rounded-full bg-[#106A3C]"></div>
-                                {formatMoney(principalPayment)} (В счет долга)
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <h5 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-                        <FileText size={16} className="text-gray-400" />
-                        Условия договора
-                      </h5>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        {debt.details?.gracePeriod && (
-                          <div>
-                            <span className="text-gray-500 block text-xs mb-0.5">Беспроцентный период:</span>
-                            <span className="font-medium text-gray-900">{debt.details.gracePeriod}</span>
-                          </div>
-                        )}
-                        {debt.details?.penalty && (
-                          <div>
-                            <span className="text-gray-500 block text-xs mb-0.5">Штраф за просрочку:</span>
-                            <span className="font-medium text-red-600">{debt.details.penalty}</span>
-                          </div>
-                        )}
-                        <div className="md:col-span-2">
-                          <span className="text-gray-500 block text-xs mb-1">Краткая выжимка (AI-анализ):</span>
-                          <p className="text-gray-700 leading-relaxed bg-white p-3 rounded-xl border border-gray-100 shadow-sm text-xs sm:text-sm">
-                            {debt.details?.summary || 'Условия не добавлены.'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {debts.length === 0 && (
-              <div className="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                <p className="text-gray-500">Долгов нет. Вы свободны!</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-[24px] p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] flex flex-col">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-bold text-gray-900">Стратегия</h3>
-          </div>
-
-          <div className="bg-gray-50 p-1 rounded-xl flex mb-6">
-            <button 
-              onClick={() => { setStrategy('avalanche'); updateCloud(debts, freeMoney, 'avalanche'); }}
-              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${strategy === 'avalanche' ? 'bg-white text-gray-900 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Лавина (Выгода)
-            </button>
-            <button 
-              onClick={() => { setStrategy('snowball'); updateCloud(debts, freeMoney, 'snowball'); }}
-              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${strategy === 'snowball' ? 'bg-white text-gray-900 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Снежный ком
-            </button>
-          </div>
-
-          <div className="flex-1 flex flex-col justify-between">
-            {Number(freeMoney) > 0 && totalDebt > 0 ? (
-              <div className="mb-6">
-                <p className="text-sm font-medium text-gray-500 mb-4">
-                  Куда направить свободные средства:
-                </p>
-                <div className="space-y-3">
-                  {Object.entries(strategyAllocation).map(([id, amount]) => {
-                    if (amount <= 0) return null;
-                    const debt = debts.find(d => d.id === parseInt(id));
-                    return (
-                      <div key={id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-[#106A3C]/10 text-[#106A3C] flex items-center justify-center shrink-0">
-                            <TrendingDown size={14} />
-                          </div>
-                          <span className="text-sm font-medium text-gray-700 truncate max-w-[140px] sm:max-w-[200px]">{debt.name}</span>
-                        </div>
-                        <span className="font-bold text-[#106A3C]">+{formatMoney(amount)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-6 mb-6 border-b border-gray-50">
-                <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-300">
-                  <Wallet size={24} />
-                </div>
-                <p className="text-xs text-gray-500">Добавьте свободные средства для расчета досрочного погашения.</p>
-              </div>
-            )}
-
-            <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 mt-auto">
-              <h4 className="text-sm font-bold text-gray-900 mb-1 text-center">Прогресс месяца</h4>
-              <p className="text-xs text-gray-500 text-center mb-4">Оплачено {formatMoney(paidThisMonthAmount)} из {formatMoney(totalMinPaymentAll)}</p>
-              
-              <div className="flex justify-center relative">
-                <svg className="w-32 h-32 transform -rotate-90">
-                  <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-200" />
-                  <circle 
-                    cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" 
-                    strokeDasharray={circleCircumference} strokeDashoffset={circleDashoffset} 
-                    className="text-[#106A3C] transition-all duration-1000 ease-out" 
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-3xl font-bold text-gray-900">{progressPercent}%</span>
-                  <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Готово</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-
-  const renderCalendar = () => {
-    const calendarDebts = [...debts].sort((a, b) => new Date(a.nextPaymentDate || 0) - new Date(b.nextPaymentDate || 0));
-
-    return (
-      <div className="bg-white rounded-[24px] p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] max-w-3xl mx-auto">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-          <Calendar className="text-[#106A3C]" /> Календарь платежей
-        </h2>
-        <div className="relative border-l-2 border-gray-100 ml-4 space-y-8 py-4">
-          {calendarDebts.map(debt => {
-            const date = new Date(debt.nextPaymentDate);
-            const formattedDate = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
-            const isPast = getDaysDiff(debt.nextPaymentDate) < 0;
-
-            return (
-              <div key={`cal_${debt.id}`} className="relative pl-6">
-                <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white ${debt.isPaidThisMonth ? 'bg-emerald-500' : isPast ? 'bg-red-500' : 'bg-[#106A3C]'}`}></div>
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                  <div>
-                    <span className={`text-sm font-bold ${isPast && !debt.isPaidThisMonth ? 'text-red-500' : 'text-[#106A3C]'}`}>{formattedDate}</span>
-                    <h4 className="font-semibold text-gray-900">{debt.name}</h4>
-                  </div>
-                  <div className="text-left sm:text-right">
-                    <p className="font-bold text-gray-900">{formatMoney(debt.minPayment)}</p>
-                    <p className="text-xs text-gray-500">{debt.isPaidThisMonth ? 'Оплачено' : 'К оплате'}</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
+  const formatMoney = (amount) => {
+    return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(amount || 0);
   };
-
-  const renderAnalytics = () => {
-    const totalInterestPerMonth = debts.reduce((sum, debt) => sum + (debt.rate > 0 ? (Number(debt.balance) * (Number(debt.rate) / 100)) / 12 : 0), 0);
-    const averageRate = debts.filter(d=>d.rate>0).length ? debts.filter(d=>d.rate>0).reduce((sum,d)=>sum+Number(d.rate),0) / debts.filter(d=>d.rate>0).length : 0;
-
-    return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-          <PieChart className="text-[#106A3C]" /> Аналитика портфеля
-        </h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <p className="text-gray-500 text-sm font-medium mb-2">Сгорает на проценты</p>
-            <h3 className="text-3xl font-bold text-red-500">{formatMoney(totalInterestPerMonth)} <span className="text-base font-normal text-gray-400">/ мес</span></h3>
-            <p className="text-xs text-gray-500 mt-2">Эту сумму вы дарите банкам каждый месяц.</p>
-          </div>
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <p className="text-gray-500 text-sm font-medium mb-2">Средняя ставка</p>
-            <h3 className="text-3xl font-bold text-gray-900">{averageRate.toFixed(1)}%</h3>
-            <p className="text-xs text-gray-500 mt-2">Чем ниже, тем выгоднее долги.</p>
-          </div>
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <p className="text-gray-500 text-sm font-medium mb-2">Количество кредиторов</p>
-            <h3 className="text-3xl font-bold text-gray-900">{debts.length} <span className="text-base font-normal text-gray-400">банков</span></h3>
-            <p className="text-xs text-gray-500 mt-2">Цель: свести к нулю.</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-          <h4 className="font-bold text-gray-900 mb-6">Структура долга</h4>
-          <div className="space-y-4">
-            {debts.sort((a,b)=>b.balance - a.balance).map(debt => (
-              <div key={`stat_${debt.id}`}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium text-gray-700">{debt.name}</span>
-                  <span className="font-bold text-gray-900">{Math.round((debt.balance / totalDebt) * 100)}%</span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div className="bg-[#106A3C] h-2 rounded-full" style={{ width: `${(debt.balance / totalDebt) * 100}%` }}></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderInvestingPlan = () => {
-    const monthlyInvestment = totalMinPaymentAll + Number(freeMoney);
-    const monthsToPayoff = monthlyInvestment > 0 ? Math.ceil(totalDebt / monthlyInvestment) : 0;
-    
-    const r = 0.12 / 12;
-    const n = 120;
-    const futureValue = monthlyInvestment * ((Math.pow(1 + r, n) - 1) / r);
-
-    return (
-      <div className="max-w-4xl mx-auto space-y-6">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-          <Target className="text-[#106A3C] w-8 h-8" /> Жизнь после долгов
-        </h2>
-        <p className="text-gray-500 mb-8">План превращения ваших кредитных платежей в личный капитал.</p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full blur-3xl -mr-10 -mt-10"></div>
-            <Clock className="text-white/30 w-10 h-10 mb-4" />
-            <p className="text-white/60 text-sm font-medium mb-1">Ориентировочный срок закрытия</p>
-            <h3 className="text-4xl font-bold tracking-tight mb-2">~ {monthsToPayoff} мес.</h3>
-            <p className="text-sm text-white/80">При платежах {formatMoney(monthlyInvestment)}/мес.</p>
-          </div>
-
-          <div className="bg-gradient-to-br from-[#106A3C] to-[#0a4a29] rounded-3xl p-8 text-white relative overflow-hidden shadow-xl shadow-[#106A3C]/20">
-            <div className="absolute bottom-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl -mr-10 -mb-10"></div>
-            <TrendingUp className="text-white/30 w-10 h-10 mb-4" />
-            <p className="text-white/60 text-sm font-medium mb-1">Капитал через 10 лет</p>
-            <h3 className="text-4xl font-bold tracking-tight mb-2">{formatMoney(futureValue)}</h3>
-            <p className="text-sm text-white/80">Если инвестировать эти деньги под 12% год.</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 md:p-8 rounded-3xl border border-gray-100 shadow-sm">
-          <h4 className="text-lg font-bold text-gray-900 mb-4">Как это работает?</h4>
-          <div className="space-y-4 text-gray-600 leading-relaxed text-sm md:text-base">
-            <p>Сейчас вы каждый месяц отдаете банкам <strong>{formatMoney(totalMinPaymentAll)}</strong> в качестве обязательных платежей.</p>
-            <p>Плюс вы готовы выделять <strong>{formatMoney(freeMoney)}</strong> сверху для стратегии досрочного погашения.</p>
-            <p><strong>Секрет богатства:</strong> Как только вы закроете последний кредит, не увеличивайте свои траты! Ваш уровень жизни уже привык к отсутствию этих денег. Просто начните отправлять эту же самую сумму ({formatMoney(monthlyInvestment)}) на брокерский счет каждый месяц.</p>
-            <p>Магия сложного процента сделает всё остальное. То, что раньше тянуло вас на дно, станет вашим капиталом, который будет приносить пассивный доход.</p>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderActiveTab = () => {
-    switch(activeTab) {
-      case 'dashboard': return renderDashboard();
-      case 'calendar': return renderCalendar();
-      case 'analytics': return renderAnalytics();
-      case 'investing': return renderInvestingPlan();
-      default: return renderDashboard();
-    }
-  };
-
-  const navItemClass = (tabId) => `flex items-center gap-3 px-4 py-3 rounded-2xl relative font-medium transition-colors w-full ${activeTab === tabId ? 'bg-[#106A3C]/5 text-[#106A3C]' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`;
 
   return (
     <div className="min-h-screen bg-[#F4F6F8] text-gray-800 font-sans flex overflow-hidden selection:bg-[#106A3C]/20">
@@ -754,7 +221,7 @@ function App() {
 
       <aside className={`fixed lg:static inset-y-0 left-0 w-[260px] bg-white border-r border-gray-100 z-50 transform transition-transform duration-300 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-6 flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#106A3C] rounded-xl flex items-center justify-center text-white font-bold shrink-0">
+          <div className="w-8 h-8 bg-[#106A3C] rounded-xl flex items-center justify-center text-white font-bold">
             <Wallet size={18} />
           </div>
           <span className="font-bold text-xl tracking-tight text-gray-900">Свобода.</span>
@@ -766,31 +233,41 @@ function App() {
         <div className="px-4 py-2">
           <p className="text-xs font-semibold text-gray-400 mb-3 px-4 uppercase tracking-wider">Меню</p>
           <nav className="space-y-1">
-            <button onClick={() => {setActiveTab('dashboard'); setIsSidebarOpen(false);}} className={navItemClass('dashboard')}>
-              {activeTab === 'dashboard' && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-[#106A3C] rounded-r-full"></div>}
-              <LayoutDashboard size={20} /> Дашборд
-            </button>
-            <button onClick={() => {setActiveTab('calendar'); setIsSidebarOpen(false);}} className={navItemClass('calendar')}>
-              {activeTab === 'calendar' && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-[#106A3C] rounded-r-full"></div>}
-              <Calendar size={20} /> Календарь
-            </button>
-            <button onClick={() => {setActiveTab('analytics'); setIsSidebarOpen(false);}} className={navItemClass('analytics')}>
-              {activeTab === 'analytics' && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-[#106A3C] rounded-r-full"></div>}
-              <PieChart size={20} /> Аналитика
-            </button>
+            <a href="#" className="flex items-center gap-3 px-4 py-3 bg-[#106A3C]/5 text-[#106A3C] rounded-2xl relative font-medium">
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-[#106A3C] rounded-r-full"></div>
+              <LayoutDashboard size={20} />
+              Дашборд
+            </a>
+            <a href="#" className="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-2xl font-medium transition-colors">
+              <Calendar size={20} />
+              Календарь
+            </a>
+            <a href="#" className="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-2xl font-medium transition-colors">
+              <PieChart size={20} />
+              Аналитика
+            </a>
           </nav>
         </div>
 
         <div className="px-4 py-6 mt-auto">
+          <p className="text-xs font-semibold text-gray-400 mb-3 px-4 uppercase tracking-wider">Общее</p>
+          <nav className="space-y-1">
+            <a href="#" className="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-2xl font-medium transition-colors">
+              <Settings size={20} />
+              Настройки
+            </a>
+            <a href="#" className="flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-2xl font-medium transition-colors">
+              <HelpCircle size={20} />
+              Помощь
+            </a>
+          </nav>
+
           <div className="mt-8 bg-gray-900 rounded-3xl p-5 text-white relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl -mr-10 -mt-10"></div>
             <div className="relative z-10">
-              <h4 className="font-semibold mb-1 text-sm">Жизнь без долгов</h4>
-              <p className="text-[11px] text-gray-400 mb-4 leading-tight">Ваш план создания капитала</p>
-              <button 
-                onClick={() => {setActiveTab('investing'); setIsSidebarOpen(false);}}
-                className="w-full bg-[#106A3C] hover:bg-[#0c502d] text-white text-xs font-medium py-2 rounded-xl transition-colors"
-              >
+              <h4 className="font-semibold mb-1 text-sm">Свобода от долгов</h4>
+              <p className="text-xs text-gray-400 mb-4">Начните инвестировать после закрытия кредитов</p>
+              <button className="w-full bg-[#106A3C] hover:bg-[#0c502d] text-white text-xs font-medium py-2 rounded-xl transition-colors">
                 Читать план
               </button>
             </div>
@@ -806,54 +283,23 @@ function App() {
               <button className="p-2 -ml-2 text-gray-600 lg:hidden" onClick={() => setIsSidebarOpen(true)}>
                 <Menu size={24} />
               </button>
+              <div className="hidden md:flex items-center bg-white border border-gray-100 rounded-full px-4 py-2 w-72 shadow-sm">
+                <Search size={18} className="text-gray-400" />
+                <input type="text" placeholder="Поиск долгов..." className="bg-transparent border-none outline-none ml-2 text-sm w-full" />
+                <div className="bg-gray-100 text-gray-500 text-[10px] px-2 py-0.5 rounded font-medium">⌘F</div>
+              </div>
             </div>
             
             <div className="flex items-center gap-3 lg:gap-5">
-              
-              <div className="relative">
-                <button 
-                  onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                  className="p-2 text-gray-500 hover:text-gray-900 relative rounded-full hover:bg-gray-100 transition-colors"
-                >
-                  <Bell size={20} />
-                  {notifications.length > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>}
-                </button>
-                
-                {isNotificationsOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)}></div>
-                    <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden transform origin-top-right transition-all">
-                      <div className="p-4 border-b border-gray-50 bg-gray-50/50">
-                        <h4 className="font-bold text-gray-900 text-sm">Уведомления</h4>
-                      </div>
-                      <div className="max-h-[60vh] overflow-y-auto">
-                        {notifications.length === 0 ? (
-                          <div className="p-6 text-center text-gray-500 text-sm">Все отлично! Нет срочных уведомлений.</div>
-                        ) : (
-                          notifications.map(notif => (
-                            <div key={notif.id} className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                              <div className="flex items-start gap-3">
-                                {notif.type === 'error' ? <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" /> : <Clock size={18} className="text-orange-500 shrink-0 mt-0.5" />}
-                                <div>
-                                  <h5 className={`text-sm font-bold ${notif.type === 'error' ? 'text-red-600' : 'text-gray-900'}`}>{notif.title}</h5>
-                                  <p className="text-xs text-gray-600 mt-1 leading-relaxed">{notif.text}</p>
-                                </div>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-
+              <button className="text-gray-500 hover:text-gray-900 hidden sm:block"><Mail size={20} /></button>
+              <button className="text-gray-500 hover:text-gray-900 relative">
+                <Bell size={20} />
+                {overdueDebts.length > 0 && <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>}
+              </button>
               <div className="flex items-center gap-3 pl-2 lg:pl-5 lg:border-l border-gray-200">
                 <div className="text-right hidden sm:block">
-                  <p className="text-sm font-semibold text-gray-900 leading-tight">Мой профиль</p>
-                  <p className="text-xs text-gray-500 flex items-center gap-1">
-                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span> Облако
-                  </p>
+                  <p className="text-sm font-semibold text-gray-900 leading-tight">Пользователь</p>
+                  <p className="text-xs text-gray-500">Мой план</p>
                 </div>
                 <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center text-gray-500">
                   <Wallet size={20} />
@@ -864,7 +310,333 @@ function App() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-          {renderActiveTab()}
+          <div className="max-w-6xl mx-auto">
+            
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Дашборд</h1>
+                <p className="text-sm text-gray-500 mt-1">Отслеживайте свои долги и планируйте их закрытие.</p>
+              </div>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="bg-[#106A3C] hover:bg-[#0c502d] text-white px-5 py-2.5 rounded-full text-sm font-medium flex items-center gap-2 transition-colors shadow-lg shadow-[#106A3C]/20 w-full sm:w-auto justify-center"
+                >
+                  <PlusCircle size={18} />
+                  Добавить долг
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <div className="bg-[#106A3C] rounded-[24px] p-5 md:p-6 text-white relative shadow-md shadow-[#106A3C]/10 flex flex-col justify-between">
+                <div>
+                  <p className="text-white/80 text-sm font-medium">Общий долг</p>
+                  <h2 className="text-2xl md:text-3xl font-bold mt-2 tracking-tight">{formatMoney(totalDebt)}</h2>
+                </div>
+                <div className="absolute top-5 right-5 bg-white/20 p-1.5 md:p-2 rounded-full">
+                  <ArrowUpRight size={18} className="text-white" />
+                </div>
+                <div className="mt-4 bg-white/10 w-max px-3 py-1 rounded-lg text-xs flex items-center gap-1.5 backdrop-blur-sm">
+                  <span>Осталось {debts.length} шт.</span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-[24px] p-5 md:p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] flex flex-col justify-between relative">
+                <div>
+                  <p className="text-gray-500 text-sm font-medium">К оплате в месяц</p>
+                  <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mt-2 tracking-tight">{formatMoney(totalMinPayment)}</h2>
+                </div>
+                <div className="absolute top-5 right-5 border border-gray-100 p-1.5 md:p-2 rounded-full text-gray-400">
+                  <ArrowUpRight size={18} />
+                </div>
+                <div className="mt-4 text-xs text-gray-500 flex items-center gap-1.5">
+                  Сумма всех мин. платежей
+                </div>
+              </div>
+
+              <div className="bg-white rounded-[24px] p-5 md:p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] flex flex-col justify-between relative">
+                <div>
+                  <p className="text-gray-500 text-sm font-medium">Просрочено</p>
+                  <h2 className={`text-2xl md:text-3xl font-bold mt-2 tracking-tight ${totalOverdue > 0 ? 'text-red-500' : 'text-gray-900'}`}>
+                    {formatMoney(totalOverdue)}
+                  </h2>
+                </div>
+                <div className="absolute top-5 right-5 border border-gray-100 p-1.5 md:p-2 rounded-full text-gray-400">
+                  <AlertCircle size={18} className={totalOverdue > 0 ? 'text-red-400' : ''} />
+                </div>
+                <div className="mt-4 text-xs flex items-center gap-1.5">
+                  {totalOverdue > 0 
+                    ? <span className="bg-red-50 text-red-600 px-2 py-1 rounded-md font-medium">{overdueDebts.length} платежей требуют внимания</span>
+                    : <span className="text-emerald-600 font-medium bg-emerald-50 px-2 py-1 rounded-md">Всё по графику</span>
+                  }
+                </div>
+              </div>
+
+              <div className="bg-white rounded-[24px] p-5 md:p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
+                <label className="text-gray-500 text-sm font-medium">Свободные средства</label>
+                <div className="relative mt-2">
+                  <input 
+                    type="number" 
+                    value={freeMoney} 
+                    onChange={(e) => setFreeMoney(e.target.value)}
+                    className="w-full bg-transparent text-2xl md:text-3xl font-bold text-[#106A3C] border-b-2 border-gray-100 focus:border-[#106A3C] outline-none pb-1 transition-colors"
+                  />
+                </div>
+                <div className="mt-4 text-xs text-gray-500">
+                  ₽ для стратегии досрочки
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              <div className="lg:col-span-2 bg-white rounded-[24px] p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)]">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-bold text-gray-900">Ближайшие платежи</h3>
+                  <button className="text-sm font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors">
+                    Все долги
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  {sortedDebts.map(debt => {
+                    const daysLeft = getDaysDiff(debt.nextPaymentDate);
+                    
+                    const monthlyInterest = debt.rate > 0 ? (Number(debt.balance || 0) * (Number(debt.rate || 0) / 100)) / 12 : 0;
+                    const principalPayment = Math.max(0, Number(debt.minPayment || 0) - monthlyInterest);
+                    const totalCurrentDebt = Number(debt.balance || 0) + monthlyInterest;
+                    
+                    const safeMinPayment = Number(debt.minPayment) || 1;
+                    const interestPercent = Math.min(100, (monthlyInterest / safeMinPayment) * 100) || 0;
+                    const principalPercent = Math.max(0, 100 - interestPercent);
+
+                    let iconColor = "bg-blue-100 text-blue-600";
+                    let badgeColor = "bg-blue-50 text-blue-600 border border-blue-100";
+                    let statusText = `Осталось ${daysLeft} дн.`;
+                    
+                    if (debt.isPaidThisMonth) {
+                      iconColor = "bg-emerald-100 text-emerald-600";
+                      badgeColor = "bg-emerald-50 text-emerald-600 border border-emerald-100";
+                      statusText = "Оплачено";
+                    } else if (daysLeft < 0) {
+                      iconColor = "bg-red-100 text-red-600";
+                      badgeColor = "bg-red-50 text-red-600 border border-red-100";
+                      statusText = `Просрочка ${Math.abs(daysLeft)} дн.`;
+                    } else if (daysLeft === 0) {
+                      iconColor = "bg-orange-100 text-orange-600";
+                      badgeColor = "bg-orange-50 text-orange-600 border border-orange-100";
+                      statusText = "Оплата сегодня";
+                    }
+
+                    return (
+                      <div key={debt.id} className={`flex flex-col rounded-2xl border transition-all ${debt.isPaidThisMonth ? 'border-gray-100 bg-gray-50/50 opacity-70' : 'border-gray-100 hover:shadow-md hover:border-gray-200'}`}>
+                        
+                        <div 
+                          className="flex flex-col sm:flex-row sm:items-center justify-between p-4 cursor-pointer"
+                          onClick={() => setExpandedId(expandedId === debt.id ? null : debt.id)}
+                        >
+                          <div className="flex items-center gap-4 mb-4 sm:mb-0">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${iconColor}`}>
+                              <Wallet size={24} />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                                {debt.name}
+                                {expandedId === debt.id ? <ChevronUp size={16} className="text-gray-400"/> : <ChevronDown size={16} className="text-gray-400"/>}
+                              </h4>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs text-gray-500 font-medium">Ставка: {debt.rate}%</span>
+                                <span className="text-gray-300">•</span>
+                                <span className="text-xs text-gray-500 font-medium">Остаток: {formatMoney(debt.balance)}</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between sm:justify-end gap-4 sm:w-auto w-full">
+                            <div className="text-left sm:text-right">
+                              <p className="text-xs text-gray-400 font-medium mb-1">Платёж</p>
+                              <p className="font-bold text-gray-900">{formatMoney(debt.minPayment)}</p>
+                            </div>
+                            
+                            <div className={`text-xs font-bold px-3 py-1.5 rounded-full whitespace-nowrap ${badgeColor}`}>
+                              {statusText}
+                            </div>
+
+                            <div className="flex items-center gap-1 border-l border-gray-100 pl-4 ml-2" onClick={e => e.stopPropagation()}>
+                               {!debt.isPaidThisMonth && (
+                                <button 
+                                  onClick={() => handleMarkPaid(debt.id)}
+                                  className="w-8 h-8 flex items-center justify-center text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors"
+                                  title="Отметить как оплаченное"
+                                >
+                                  <CheckCircle2 size={20} />
+                                </button>
+                               )}
+                               <button 
+                                  onClick={() => handleDeleteDebt(debt.id)}
+                                  className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                                  title="Удалить долг"
+                                >
+                                  <X size={20} />
+                                </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {expandedId === debt.id && (
+                          <div className="p-4 border-t border-gray-100 bg-[#F8FAFC] rounded-b-2xl cursor-default" onClick={e => e.stopPropagation()}>
+                            
+                            <div className="mb-5 bg-white p-4 rounded-xl border border-gray-100 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)]">
+                              <h6 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <PieChart size={14} className="text-[#106A3C]" />
+                                Экономика на этот месяц
+                              </h6>
+                              
+                              <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-5">
+                                <div>
+                                  <span className="block text-[10px] sm:text-xs text-gray-400 mb-1">Тело долга</span>
+                                  <span className="font-bold text-gray-900 text-sm sm:text-base">{formatMoney(debt.balance)}</span>
+                                </div>
+                                <div className="border-l border-gray-50 pl-2 sm:pl-4">
+                                  <span className="block text-[10px] sm:text-xs text-gray-400 mb-1">+ Проценты банку</span>
+                                  <span className="font-bold text-red-500 text-sm sm:text-base">{formatMoney(monthlyInterest)}</span>
+                                </div>
+                                <div className="border-l border-gray-50 pl-2 sm:pl-4">
+                                  <span className="block text-[10px] sm:text-xs text-gray-400 mb-1">Общий остаток</span>
+                                  <span className="font-bold text-[#106A3C] text-sm sm:text-base">{formatMoney(totalCurrentDebt)}</span>
+                                </div>
+                              </div>
+
+                              {Number(debt.rate || 0) > 0 && (
+                                <div className="pt-4 border-t border-gray-50">
+                                  <div className="flex justify-between items-end mb-2">
+                                    <span className="block text-xs text-gray-500 font-medium">Куда уходит ваш платеж ({formatMoney(debt.minPayment)}):</span>
+                                  </div>
+                                  <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden flex shadow-inner">
+                                    <div className="bg-red-400 h-full transition-all duration-500" style={{ width: `${interestPercent}%` }}></div>
+                                    <div className="bg-[#106A3C] h-full transition-all duration-500" style={{ width: `${principalPercent}%` }}></div>
+                                  </div>
+                                  <div className="flex justify-between mt-2 text-[11px] font-medium">
+                                    <span className="text-red-500 flex items-center gap-1">
+                                      <div className="w-2 h-2 rounded-full bg-red-400"></div>
+                                      {formatMoney(monthlyInterest)} (Проценты)
+                                    </span>
+                                    <span className="text-[#106A3C] flex items-center gap-1">
+                                      <div className="w-2 h-2 rounded-full bg-[#106A3C]"></div>
+                                      {formatMoney(principalPayment)} (В счет долга)
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            <h5 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                              <FileText size={16} className="text-gray-400" />
+                              Условия договора
+                            </h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                              {debt.details?.gracePeriod && (
+                                <div>
+                                  <span className="text-gray-500 block text-xs mb-0.5">Беспроцентный период:</span>
+                                  <span className="font-medium text-gray-900">{debt.details.gracePeriod}</span>
+                                </div>
+                              )}
+                              {debt.details?.penalty && (
+                                <div>
+                                  <span className="text-gray-500 block text-xs mb-0.5">Штраф за просрочку:</span>
+                                  <span className="font-medium text-red-600">{debt.details.penalty}</span>
+                                </div>
+                              )}
+                              <div className="md:col-span-2">
+                                <span className="text-gray-500 block text-xs mb-1">Краткая выжимка (AI-анализ):</span>
+                                <p className="text-gray-700 leading-relaxed bg-white p-3 rounded-xl border border-gray-100 shadow-sm text-xs sm:text-sm">
+                                  {debt.details?.summary || 'Условия не добавлены.'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {debts.length === 0 && (
+                    <div className="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                      <p className="text-gray-500">Долгов нет. Вы свободны!</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-[24px] p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] flex flex-col">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-bold text-gray-900">Стратегия</h3>
+                </div>
+
+                <div className="bg-gray-50 p-1 rounded-xl flex mb-6">
+                  <button 
+                    onClick={() => setStrategy('avalanche')}
+                    className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${strategy === 'avalanche' ? 'bg-white text-gray-900 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    Лавина (Выгода)
+                  </button>
+                  <button 
+                    onClick={() => setStrategy('snowball')}
+                    className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${strategy === 'snowball' ? 'bg-white text-gray-900 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    Снежный ком
+                  </button>
+                </div>
+
+                <div className="flex-1 flex flex-col justify-center">
+                  {Number(freeMoney) > 0 && totalDebt > 0 ? (
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 mb-4 text-center">
+                        Куда направить свободные средства:
+                      </p>
+                      <div className="space-y-3">
+                        {Object.entries(strategyAllocation).map(([id, amount]) => {
+                          if (amount <= 0) return null;
+                          const debt = debts.find(d => d.id === parseInt(id));
+                          return (
+                            <div key={id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-[#106A3C]/10 text-[#106A3C] flex items-center justify-center">
+                                  <TrendingDown size={14} />
+                                </div>
+                                <span className="text-sm font-medium text-gray-700 truncate max-w-[120px] sm:max-w-xs">{debt.name}</span>
+                              </div>
+                              <span className="font-bold text-[#106A3C]">+{formatMoney(amount)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      <div className="mt-8 flex justify-center relative">
+                        <svg className="w-32 h-32 transform -rotate-90">
+                          <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-100" />
+                          <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" strokeDasharray="351.8" strokeDashoffset="150" className="text-[#106A3C]" />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <span className="text-2xl font-bold text-gray-900">План</span>
+                          <span className="text-xs text-gray-500">активен</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
+                        <Wallet size={32} />
+                      </div>
+                      <p className="text-sm text-gray-500">Добавьте свободные средства для расчета оптимального плана закрытия.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          </div>
         </div>
       </main>
 
@@ -915,7 +687,7 @@ function App() {
                     value={newDebt.detailsSummary} 
                     onChange={e => setNewDebt({...newDebt, detailsSummary: e.target.value})} 
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-gray-900 focus:outline-none focus:border-[#106A3C] focus:bg-white transition-colors resize-none h-24 text-sm" 
-                    placeholder="Сюда можно вставить результат анализа договора."
+                    placeholder="Сюда можно вставить результат анализа договора. Например: Грейс 120 дней. При просрочке неустойка 20% годовых."
                   />
                 </div>
 
