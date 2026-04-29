@@ -1,7 +1,36 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createRoot } from 'react-dom/client';
 import { PlusCircle, Wallet, AlertCircle, Calendar, TrendingDown, ArrowRight, CheckCircle2, X, Menu, Bell, LayoutDashboard, Settings, PieChart, ArrowUpRight, Search, Mail, HelpCircle, LogOut, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 
-// Исходные данные для демонстрации (если хранилище пустое)
+// Ловец ошибок (чтобы вместо белого экрана видеть причину)
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    this.setState({ errorInfo });
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '20px', backgroundColor: '#fee', color: '#c00', fontFamily: 'sans-serif' }}>
+          <h2 style={{ marginBottom: '10px' }}>Упс! Произошла ошибка в коде:</h2>
+          <p style={{ fontWeight: 'bold' }}>{this.state.error && this.state.error.toString()}</p>
+          <pre style={{ marginTop: '20px', fontSize: '12px', whiteSpace: 'pre-wrap' }}>
+            {this.state.errorInfo && this.state.errorInfo.componentStack}
+          </pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// Исходные данные для демонстрации
 const initialDebts = [
   {
     id: 1,
@@ -82,82 +111,64 @@ const initialDebts = [
   }
 ];
 
-export default function App() {
-  // Состояние долгов (пытаемся загрузить из localStorage, иначе используем initialDebts)
+function App() {
   const [debts, setDebts] = useState(() => {
-    const saved = localStorage.getItem('myDebts');
-    return saved ? JSON.parse(saved) : initialDebts;
+    try {
+      const saved = localStorage.getItem('myDebts');
+      return saved ? JSON.parse(saved) : initialDebts;
+    } catch (e) {
+      return initialDebts;
+    }
   });
 
-  // Состояние свободных денег для стратегии
   const [freeMoney, setFreeMoney] = useState(15000);
-  
-  // Выбранная стратегия ('avalanche' - Лавина, 'snowball' - Снежный ком)
   const [strategy, setStrategy] = useState('avalanche');
-  
-  // Состояние развернутой карточки долга
   const [expandedId, setExpandedId] = useState(null);
-  
-  // Состояние бокового меню для мобильных устройств
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  // Состояние модального окна добавления долга
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newDebt, setNewDebt] = useState({
     name: '', type: 'loan', balance: '', rate: '', minPayment: '', nextPaymentDate: '', detailsSummary: ''
   });
 
-  // Сохраняем в localStorage при каждом изменении debts
   useEffect(() => {
     localStorage.setItem('myDebts', JSON.stringify(debts));
   }, [debts]);
 
-  // Вспомогательные функции для дат
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const getDaysDiff = (dateStr) => {
+    if (!dateStr) return 0;
     const targetDate = new Date(dateStr);
     targetDate.setHours(0, 0, 0, 0);
     const diffTime = targetDate - today;
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  // Вычисляемые данные
-  const totalDebt = debts.reduce((sum, d) => sum + Number(d.balance), 0);
-  const totalMinPayment = debts.reduce((sum, d) => sum + (d.isPaidThisMonth ? 0 : Number(d.minPayment)), 0);
+  const totalDebt = debts.reduce((sum, d) => sum + Number(d.balance || 0), 0);
+  const totalMinPayment = debts.reduce((sum, d) => sum + (d.isPaidThisMonth ? 0 : Number(d.minPayment || 0)), 0);
   
-  // Просрочки
   const overdueDebts = debts.filter(d => !d.isPaidThisMonth && getDaysDiff(d.nextPaymentDate) < 0);
-  const totalOverdue = overdueDebts.reduce((sum, d) => sum + Number(d.minPayment), 0);
+  const totalOverdue = overdueDebts.reduce((sum, d) => sum + Number(d.minPayment || 0), 0);
 
-  // Сортировка долгов по срочности платежа
   const sortedDebts = [...debts].sort((a, b) => {
-    // Сначала не оплаченные, потом оплаченные
     if (a.isPaidThisMonth !== b.isPaidThisMonth) return a.isPaidThisMonth ? 1 : -1;
-    // Сортировка по дате
-    return new Date(a.nextPaymentDate) - new Date(b.nextPaymentDate);
+    return new Date(a.nextPaymentDate || 0) - new Date(b.nextPaymentDate || 0);
   });
 
-  // Логика стратегии распределения свободных денег
   const strategyAllocation = useMemo(() => {
-    let remainingMoney = Number(freeMoney);
+    let remainingMoney = Number(freeMoney) || 0;
     const allocation = {};
-    
-    // Берем только неоплаченные полностью долги
     let targetDebts = debts.filter(d => d.balance > 0);
 
     if (strategy === 'avalanche') {
-      // Лавина: сортируем по убыванию ставки
-      targetDebts.sort((a, b) => b.rate - a.rate);
+      targetDebts.sort((a, b) => (b.rate || 0) - (a.rate || 0));
     } else {
-      // Снежный ком: сортируем по возрастанию остатка долга
-      targetDebts.sort((a, b) => a.balance - b.balance);
+      targetDebts.sort((a, b) => (a.balance || 0) - (b.balance || 0));
     }
 
     targetDebts.forEach(debt => {
       if (remainingMoney > 0) {
-        // Сколько можем направить в этот долг? Не больше, чем сам долг.
         const amountToDirect = Math.min(remainingMoney, debt.balance);
         allocation[debt.id] = amountToDirect;
         remainingMoney -= amountToDirect;
@@ -169,11 +180,10 @@ export default function App() {
     return allocation;
   }, [debts, freeMoney, strategy]);
 
-  // Действия пользователя
   const handleMarkPaid = (id) => {
     setDebts(debts.map(d => {
       if (d.id === id) {
-        const newBalance = Math.max(0, d.balance - d.minPayment);
+        const newBalance = Math.max(0, d.balance - (d.minPayment || 0));
         return { ...d, isPaidThisMonth: true, balance: newBalance };
       }
       return d;
@@ -198,30 +208,17 @@ export default function App() {
     setDebts(debts.filter(d => d.id !== id));
   };
 
-  // Визуальные хелперы
-  const getStatusColor = (days, isPaid) => {
-    if (isPaid) return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
-    if (days < 0) return 'bg-red-500/10 text-red-500 border-red-500/20'; // Просрочка
-    if (days <= 3) return 'bg-orange-500/10 text-orange-500 border-orange-500/20'; // Скоро
-    return 'bg-blue-500/10 text-blue-500 border-blue-500/20'; // Нормально
-  };
-
   const formatMoney = (amount) => {
-    return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(amount);
+    return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(amount || 0);
   };
 
   return (
     <div className="min-h-screen bg-[#F4F6F8] text-gray-800 font-sans flex overflow-hidden selection:bg-[#106A3C]/20">
       
-      {/* Затемнение фона при открытом меню на мобильных */}
       {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-gray-900/20 backdrop-blur-sm z-40 lg:hidden" 
-          onClick={() => setIsSidebarOpen(false)} 
-        />
+        <div className="fixed inset-0 bg-gray-900/20 backdrop-blur-sm z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
       )}
 
-      {/* Боковое меню (Sidebar) */}
       <aside className={`fixed lg:static inset-y-0 left-0 w-[260px] bg-white border-r border-gray-100 z-50 transform transition-transform duration-300 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-6 flex items-center gap-3">
           <div className="w-8 h-8 bg-[#106A3C] rounded-xl flex items-center justify-center text-white font-bold">
@@ -278,10 +275,8 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Основной контент */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         
-        {/* Верхняя панель (Header) */}
         <header className="bg-white/60 backdrop-blur-md border-b border-gray-100 lg:border-none sticky top-0 z-30">
           <div className="flex items-center justify-between p-4 lg:px-8 lg:py-6">
             <div className="flex items-center gap-4 flex-1">
@@ -314,11 +309,9 @@ export default function App() {
           </div>
         </header>
 
-        {/* Скроллируемая область */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-8">
           <div className="max-w-6xl mx-auto">
             
-            {/* Заголовок дашборда */}
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Дашборд</h1>
@@ -335,9 +328,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Сетка метрик (Top Cards) */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              {/* Card 1: Green Accent */}
               <div className="bg-[#106A3C] rounded-[24px] p-5 md:p-6 text-white relative shadow-md shadow-[#106A3C]/10 flex flex-col justify-between">
                 <div>
                   <p className="text-white/80 text-sm font-medium">Общий долг</p>
@@ -351,7 +342,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Card 2 */}
               <div className="bg-white rounded-[24px] p-5 md:p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] flex flex-col justify-between relative">
                 <div>
                   <p className="text-gray-500 text-sm font-medium">К оплате в месяц</p>
@@ -365,7 +355,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Card 3 */}
               <div className="bg-white rounded-[24px] p-5 md:p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] flex flex-col justify-between relative">
                 <div>
                   <p className="text-gray-500 text-sm font-medium">Просрочено</p>
@@ -384,7 +373,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Card 4: Input */}
               <div className="bg-white rounded-[24px] p-5 md:p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] flex flex-col justify-between">
                 <label className="text-gray-500 text-sm font-medium">Свободные средства</label>
                 <div className="relative mt-2">
@@ -401,10 +389,8 @@ export default function App() {
               </div>
             </div>
 
-            {/* Основная сетка контента */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               
-              {/* Ближайшие платежи (Занимает 2 колонки) */}
               <div className="lg:col-span-2 bg-white rounded-[24px] p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)]">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-lg font-bold text-gray-900">Ближайшие платежи</h3>
@@ -417,17 +403,14 @@ export default function App() {
                   {sortedDebts.map(debt => {
                     const daysLeft = getDaysDiff(debt.nextPaymentDate);
                     
-                    // Математика долга на текущий месяц
-                    const monthlyInterest = debt.rate > 0 ? (Number(debt.balance) * (Number(debt.rate) / 100)) / 12 : 0;
-                    const principalPayment = Math.max(0, Number(debt.minPayment) - monthlyInterest);
-                    const totalCurrentDebt = Number(debt.balance) + monthlyInterest;
+                    const monthlyInterest = debt.rate > 0 ? (Number(debt.balance || 0) * (Number(debt.rate || 0) / 100)) / 12 : 0;
+                    const principalPayment = Math.max(0, Number(debt.minPayment || 0) - monthlyInterest);
+                    const totalCurrentDebt = Number(debt.balance || 0) + monthlyInterest;
                     
-                    // Расчет для визуальной полосы платежа (защита от деления на ноль)
                     const safeMinPayment = Number(debt.minPayment) || 1;
                     const interestPercent = Math.min(100, (monthlyInterest / safeMinPayment) * 100) || 0;
                     const principalPercent = Math.max(0, 100 - interestPercent);
 
-                    // Цветовые стили в зависимости от статуса
                     let iconColor = "bg-blue-100 text-blue-600";
                     let badgeColor = "bg-blue-50 text-blue-600 border border-blue-100";
                     let statusText = `Осталось ${daysLeft} дн.`;
@@ -449,7 +432,6 @@ export default function App() {
                     return (
                       <div key={debt.id} className={`flex flex-col rounded-2xl border transition-all ${debt.isPaidThisMonth ? 'border-gray-100 bg-gray-50/50 opacity-70' : 'border-gray-100 hover:shadow-md hover:border-gray-200'}`}>
                         
-                        {/* Основная часть карточки (кликабельная) */}
                         <div 
                           className="flex flex-col sm:flex-row sm:items-center justify-between p-4 cursor-pointer"
                           onClick={() => setExpandedId(expandedId === debt.id ? null : debt.id)}
@@ -502,11 +484,9 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* Развернутые детали договора */}
                         {expandedId === debt.id && (
                           <div className="p-4 border-t border-gray-100 bg-[#F8FAFC] rounded-b-2xl cursor-default" onClick={e => e.stopPropagation()}>
                             
-                            {/* Новый блок: Структура долга и платежа */}
                             <div className="mb-5 bg-white p-4 rounded-xl border border-gray-100 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)]">
                               <h6 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
                                 <PieChart size={14} className="text-[#106A3C]" />
@@ -528,7 +508,7 @@ export default function App() {
                                 </div>
                               </div>
 
-                              {debt.rate > 0 && (
+                              {Number(debt.rate || 0) > 0 && (
                                 <div className="pt-4 border-t border-gray-50">
                                   <div className="flex justify-between items-end mb-2">
                                     <span className="block text-xs text-gray-500 font-medium">Куда уходит ваш платеж ({formatMoney(debt.minPayment)}):</span>
@@ -589,13 +569,11 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Стратегия погашения (Правая колонка) */}
               <div className="bg-white rounded-[24px] p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] flex flex-col">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-lg font-bold text-gray-900">Стратегия</h3>
                 </div>
 
-                {/* Переключатель стратегий */}
                 <div className="bg-gray-50 p-1 rounded-xl flex mb-6">
                   <button 
                     onClick={() => setStrategy('avalanche')}
@@ -635,7 +613,6 @@ export default function App() {
                         })}
                       </div>
                       
-                      {/* Визуальный круг (имитация Project Progress из референса) */}
                       <div className="mt-8 flex justify-center relative">
                         <svg className="w-32 h-32 transform -rotate-90">
                           <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-100" />
@@ -663,7 +640,6 @@ export default function App() {
         </div>
       </main>
 
-      {/* Модальное окно добавления (Светлая тема) */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white border border-gray-100 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
@@ -711,7 +687,7 @@ export default function App() {
                     value={newDebt.detailsSummary} 
                     onChange={e => setNewDebt({...newDebt, detailsSummary: e.target.value})} 
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-gray-900 focus:outline-none focus:border-[#106A3C] focus:bg-white transition-colors resize-none h-24 text-sm" 
-                    placeholder="Сюда можно вставить результат анализа договора. Например: Грейс 120 дней. При просрочке неустойка 20% годовых. Скрытая страховка 1.2%."
+                    placeholder="Сюда можно вставить результат анализа договора. Например: Грейс 120 дней. При просрочке неустойка 20% годовых."
                   />
                 </div>
 
@@ -726,5 +702,15 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+}
+
+const rootElement = document.getElementById('root');
+if (rootElement) {
+  const root = createRoot(rootElement);
+  root.render(
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   );
 }
