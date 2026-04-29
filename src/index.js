@@ -1,6 +1,26 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
-import { PlusCircle, Wallet, AlertCircle, Calendar, TrendingDown, TrendingUp, ArrowRight, CheckCircle2, X, Menu, Bell, LayoutDashboard, Settings, PieChart, ArrowUpRight, Search, Mail, HelpCircle, LogOut, ChevronDown, ChevronUp, FileText, RotateCcw, Clock, Target } from 'lucide-react';
+import { PlusCircle, Wallet, AlertCircle, Calendar, TrendingDown, TrendingUp, ArrowRight, CheckCircle2, X, Menu, Bell, LayoutDashboard, Settings, PieChart, ArrowUpRight, Search, Mail, HelpCircle, LogOut, ChevronDown, ChevronUp, FileText, RotateCcw, Clock, Target, Loader2 } from 'lucide-react';
+
+// --- НАСТРОЙКИ FIREBASE (ОБЛАКО) ---
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
+
+// Ключи от вашей базы данных Firebase
+const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : JSON.stringify({
+  apiKey: "AIzaSyAYNPCG4DHFTAwWkARHGyYmiU0GTklQ6_Q",
+  authDomain: "dashboard-27927.firebaseapp.com",
+  projectId: "dashboard-27927",
+  storageBucket: "dashboard-27927.firebasestorage.app",
+  messagingSenderId: "428248986605",
+  appId: "1:428248986605:web:95b3ccf9ffa65d0e68ade4"
+});
+const firebaseConfig = JSON.parse(firebaseConfigStr);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'dashboard-27927';
 
 // Ловец ошибок
 class ErrorBoundary extends React.Component {
@@ -8,12 +28,8 @@ class ErrorBoundary extends React.Component {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
   }
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-  componentDidCatch(error, errorInfo) {
-    this.setState({ errorInfo });
-  }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, errorInfo) { this.setState({ errorInfo }); }
   render() {
     if (this.state.hasError) {
       return (
@@ -30,101 +46,22 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Исходные данные для демонстрации
+// Демонстрационные данные (если база пустая)
 const initialDebts = [
-  {
-    id: 1,
-    name: 'Сбер (Кредитка)',
-    type: 'credit_card',
-    balance: 85000,
-    rate: 25.9,
-    minPayment: 3500,
-    nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 5)).toISOString().split('T')[0],
-    isPaidThisMonth: false,
-    details: { gracePeriod: 'до 120 дней', penalty: '36% годовых на сумму просрочки', summary: 'Важно: Грейс-период возобновляется только после полного погашения долга. Снятие наличных отменяет грейс-период и облагается комиссией 390 руб + 3.9%.' }
-  },
-  {
-    id: 2,
-    name: 'ВТБ (Кредитка)',
-    type: 'credit_card',
-    balance: 120000,
-    rate: 29.9,
-    minPayment: 5000,
-    nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 12)).toISOString().split('T')[0],
-    isPaidThisMonth: false,
-    details: { gracePeriod: 'до 200 дней', penalty: '0.1% в день', summary: 'Минимальный платеж 3% от суммы долга. При пропуске платежа льготный период сгорает, начисляются проценты за весь срок.' }
-  },
-  {
-    id: 3,
-    name: 'Альфа (Кредитка)',
-    type: 'credit_card',
-    balance: 45000,
-    rate: 34.9,
-    minPayment: 2000,
-    nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 2)).toISOString().split('T')[0],
-    isPaidThisMonth: false,
-    details: { gracePeriod: 'Год без % (на покупки в первые 30 дней)', penalty: 'Неустойка 20% годовых', summary: 'Ставка 34.9% применяется ко всем покупкам с 31-го дня. Проверьте скрытую страховку (обычно 1.2% в месяц), ее нужно отключить в приложении!' }
-  },
-  {
-    id: 4,
-    name: 'Т-Банк (Кредитка)',
-    type: 'credit_card',
-    balance: 60000,
-    rate: 28.5,
-    minPayment: 3000,
-    nextPaymentDate: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0], 
-    isPaidThisMonth: false,
-    details: { gracePeriod: 'до 55 дней', penalty: '20% годовых + штраф 590 руб', summary: 'Штраф за неоплату минимального платежа фиксированный: 590 рублей. Часто включено SMS-информирование (99 руб/мес).' }
-  },
-  {
-    id: 5,
-    name: 'ОТП Банк (Кредит)',
-    type: 'loan',
-    balance: 250000,
-    rate: 18.0,
-    minPayment: 12500,
-    nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 20)).toISOString().split('T')[0],
-    isPaidThisMonth: false,
-    details: { penalty: '0.1% в день', summary: 'Потребительский кредит. Досрочное погашение возможно в любую дату без штрафов через приложение. Перерасчет графика происходит автоматически (выгоднее уменьшать срок, а не платеж).' }
-  },
-  {
-    id: 6,
-    name: 'Яндекс (Кредит)',
-    type: 'loan',
-    balance: 150000,
-    rate: 21.5,
-    minPayment: 8500,
-    nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 8)).toISOString().split('T')[0],
-    isPaidThisMonth: false,
-    details: { penalty: '20% годовых от суммы просрочки', summary: 'Досрочное погашение списывается только в дату регулярного платежа. Нужно подавать заявку заранее.' }
-  },
-  {
-    id: 7,
-    name: 'Яндекс Сплит (Рассрочка)',
-    type: 'installment',
-    balance: 25000,
-    rate: 0,
-    minPayment: 6250,
-    nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 4)).toISOString().split('T')[0],
-    isPaidThisMonth: false,
-    details: { penalty: 'Единоразовый штраф', summary: 'Классический Сплит. Процентов нет. В случае просрочки взимается разовая комиссия и блокируется лимит на будущие покупки.' }
-  }
+  { id: 1, name: 'Сбер (Кредитка)', type: 'credit_card', balance: 85000, rate: 25.9, minPayment: 3500, nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 5)).toISOString().split('T')[0], isPaidThisMonth: false, details: { summary: 'Важно: Снятие наличных отменяет грейс-период.' } },
+  { id: 2, name: 'ВТБ (Кредитка)', type: 'credit_card', balance: 120000, rate: 29.9, minPayment: 5000, nextPaymentDate: new Date(new Date().setDate(new Date().getDate() + 12)).toISOString().split('T')[0], isPaidThisMonth: false, details: { summary: 'Минимальный платеж 3% от суммы долга.' } }
 ];
 
-function App() {
+export default function App() {
   // Навигация
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'calendar', 'analytics', 'investing'
+  const [activeTab, setActiveTab] = useState('dashboard');
   
-  // Состояние данных
-  const [debts, setDebts] = useState(() => {
-    try {
-      const saved = localStorage.getItem('myDebts');
-      return saved ? JSON.parse(saved) : initialDebts;
-    } catch (e) {
-      return initialDebts;
-    }
-  });
+  // Состояния синхронизации с облаком
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Данные приложения
+  const [debts, setDebts] = useState([]);
   const [freeMoney, setFreeMoney] = useState(15000);
   const [strategy, setStrategy] = useState('avalanche');
   
@@ -138,9 +75,53 @@ function App() {
     name: '', type: 'loan', balance: '', rate: '', minPayment: '', nextPaymentDate: '', detailsSummary: ''
   });
 
+  // Инициализация Авторизации Firebase
   useEffect(() => {
-    localStorage.setItem('myDebts', JSON.stringify(debts));
-  }, [debts]);
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (error) {
+        console.error("Auth error:", error);
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
+
+  // Загрузка и синхронизация данных из Firestore
+  useEffect(() => {
+    if (!user) return;
+    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'appState', 'main');
+    
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setDebts(data.debts || []);
+        setFreeMoney(data.freeMoney || 15000);
+        setStrategy(data.strategy || 'avalanche');
+      } else {
+        setDoc(docRef, { debts: initialDebts, freeMoney: 15000, strategy: 'avalanche' });
+      }
+      setIsLoading(false);
+    }, (err) => {
+      console.error("Ошибка загрузки данных:", err);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Отправка изменений в облако
+  const updateCloud = (newDebts, newFreeMoney, newStrategy) => {
+    if (!user) return;
+    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'appState', 'main');
+    setDoc(docRef, { debts: newDebts, freeMoney: Number(newFreeMoney), strategy: newStrategy }, { merge: true });
+  };
 
   // Хелперы для дат
   const today = new Date();
@@ -158,7 +139,7 @@ function App() {
     return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(amount || 0);
   };
 
-  // Базовые вычисления
+  // Вычисления
   const totalDebt = debts.reduce((sum, d) => sum + Number(d.balance || 0), 0);
   const totalMinPaymentAll = debts.reduce((sum, d) => sum + Number(d.minPayment || 0), 0);
   const totalMinPaymentRemaining = debts.reduce((sum, d) => sum + (d.isPaidThisMonth ? 0 : Number(d.minPayment || 0)), 0);
@@ -171,13 +152,11 @@ function App() {
   const overdueDebts = debts.filter(d => !d.isPaidThisMonth && getDaysDiff(d.nextPaymentDate) < 0);
   const totalOverdue = overdueDebts.reduce((sum, d) => sum + Number(d.minPayment || 0), 0);
 
-  // Сортировка для дашборда (сначала срочные)
   const sortedDebts = [...debts].sort((a, b) => {
     if (a.isPaidThisMonth !== b.isPaidThisMonth) return a.isPaidThisMonth ? 1 : -1;
     return new Date(a.nextPaymentDate || 0) - new Date(b.nextPaymentDate || 0);
   });
 
-  // Уведомления
   const notifications = useMemo(() => {
     const alerts = [];
     overdueDebts.forEach(d => {
@@ -189,7 +168,6 @@ function App() {
     return alerts;
   }, [debts, overdueDebts]);
 
-  // Распределение свободных денег
   const strategyAllocation = useMemo(() => {
     let remainingMoney = Number(freeMoney) || 0;
     const allocation = {};
@@ -214,31 +192,36 @@ function App() {
     return allocation;
   }, [debts, freeMoney, strategy]);
 
-  // Действия
+  // Действия с облаком
   const handleMarkPaid = (id) => {
-    setDebts(debts.map(d => {
+    const newDebts = debts.map(d => {
       if (d.id === id) {
         const newBalance = Math.max(0, d.balance - (d.minPayment || 0));
         return { ...d, isPaidThisMonth: true, balance: newBalance, _prevBalance: d.balance };
       }
       return d;
-    }));
+    });
+    setDebts(newDebts);
+    updateCloud(newDebts, freeMoney, strategy);
   };
 
   const handleUndoPaid = (id) => {
-    setDebts(debts.map(d => {
+    const newDebts = debts.map(d => {
       if (d.id === id) {
-        // Возвращаем старый баланс, если он сохранен, иначе просто плюсуем мин. платеж обратно
         const restoredBalance = d._prevBalance !== undefined ? d._prevBalance : d.balance + (d.minPayment || 0);
         return { ...d, isPaidThisMonth: false, balance: restoredBalance };
       }
       return d;
-    }));
+    });
+    setDebts(newDebts);
+    updateCloud(newDebts, freeMoney, strategy);
   };
 
   const handleResetMonth = () => {
     if (window.confirm('Вы уверены, что хотите начать новый месяц? Все статусы "Оплачено" будут сброшены.')) {
-      setDebts(debts.map(d => ({ ...d, isPaidThisMonth: false })));
+      const newDebts = debts.map(d => ({ ...d, isPaidThisMonth: false }));
+      setDebts(newDebts);
+      updateCloud(newDebts, freeMoney, strategy);
     }
   };
 
@@ -251,22 +234,35 @@ function App() {
       isPaidThisMonth: false,
       details: { summary: newDebt.detailsSummary || 'Нет сохраненных условий.' }
     };
-    setDebts([...debts, debtToAdd]);
+    const newDebts = [...debts, debtToAdd];
+    setDebts(newDebts);
+    updateCloud(newDebts, freeMoney, strategy);
     setIsAddModalOpen(false);
     setNewDebt({ name: '', type: 'loan', balance: '', rate: '', minPayment: '', nextPaymentDate: '', detailsSummary: '' });
   };
 
   const handleDeleteDebt = (id) => {
     if (window.confirm('Точно удалить этот долг?')) {
-      setDebts(debts.filter(d => d.id !== id));
+      const newDebts = debts.filter(d => d.id !== id);
+      setDebts(newDebts);
+      updateCloud(newDebts, freeMoney, strategy);
     }
   };
 
-  // --- КОМПОНЕНТЫ ЭКРАНОВ --- //
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#F4F6F8] flex flex-col items-center justify-center text-[#106A3C]">
+        <Loader2 className="w-12 h-12 animate-spin mb-4" />
+        <h2 className="text-xl font-bold text-gray-900 tracking-tight">Подключение к облаку...</h2>
+        <p className="text-sm text-gray-500 mt-2">Синхронизация ваших данных</p>
+      </div>
+    );
+  }
+
+  // --- ЭКРАНЫ ---
 
   const renderDashboard = () => (
     <>
-      {/* Метрики */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-[#106A3C] rounded-[24px] p-5 md:p-6 text-white relative shadow-md shadow-[#106A3C]/10 flex flex-col justify-between">
           <div>
@@ -319,6 +315,7 @@ function App() {
               type="number" 
               value={freeMoney} 
               onChange={(e) => setFreeMoney(e.target.value)}
+              onBlur={() => updateCloud(debts, freeMoney, strategy)}
               className="w-full bg-transparent text-2xl md:text-3xl font-bold text-[#106A3C] border-b-2 border-gray-100 focus:border-[#106A3C] outline-none pb-1 transition-colors"
             />
           </div>
@@ -329,7 +326,6 @@ function App() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Список платежей */}
         <div className="lg:col-span-2 bg-white rounded-[24px] p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)]">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
             <h3 className="text-lg font-bold text-gray-900">Ближайшие платежи</h3>
@@ -413,7 +409,7 @@ function App() {
                            <button 
                             onClick={() => handleUndoPaid(debt.id)}
                             className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-full transition-colors"
-                            title="Отменить платеж (вернуться назад)"
+                            title="Отменить платеж"
                           >
                             <RotateCcw size={18} />
                           </button>
@@ -439,13 +435,11 @@ function App() {
 
                   {expandedId === debt.id && (
                     <div className="p-4 border-t border-gray-100 bg-[#F8FAFC] rounded-b-2xl cursor-default" onClick={e => e.stopPropagation()}>
-                      
                       <div className="mb-5 bg-white p-4 rounded-xl border border-gray-100 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)]">
                         <h6 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
                           <PieChart size={14} className="text-[#106A3C]" />
                           Экономика на этот месяц
                         </h6>
-                        
                         <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-5">
                           <div>
                             <span className="block text-[10px] sm:text-xs text-gray-400 mb-1">Тело долга</span>
@@ -471,41 +465,20 @@ function App() {
                               <div className="bg-[#106A3C] h-full transition-all duration-500" style={{ width: `${principalPercent}%` }}></div>
                             </div>
                             <div className="flex justify-between mt-2 text-[11px] font-medium">
-                              <span className="text-red-500 flex items-center gap-1">
-                                <div className="w-2 h-2 rounded-full bg-red-400"></div>
-                                {formatMoney(monthlyInterest)} (Проценты)
-                              </span>
-                              <span className="text-[#106A3C] flex items-center gap-1">
-                                <div className="w-2 h-2 rounded-full bg-[#106A3C]"></div>
-                                {formatMoney(principalPayment)} (В счет долга)
-                              </span>
+                              <span className="text-red-500 flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-400"></div>{formatMoney(monthlyInterest)} (Проценты)</span>
+                              <span className="text-[#106A3C] flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#106A3C]"></div>{formatMoney(principalPayment)} (В счет долга)</span>
                             </div>
                           </div>
                         )}
                       </div>
 
-                      <h5 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-                        <FileText size={16} className="text-gray-400" />
-                        Условия договора
-                      </h5>
+                      <h5 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2"><FileText size={16} className="text-gray-400" />Условия договора</h5>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        {debt.details?.gracePeriod && (
-                          <div>
-                            <span className="text-gray-500 block text-xs mb-0.5">Беспроцентный период:</span>
-                            <span className="font-medium text-gray-900">{debt.details.gracePeriod}</span>
-                          </div>
-                        )}
-                        {debt.details?.penalty && (
-                          <div>
-                            <span className="text-gray-500 block text-xs mb-0.5">Штраф за просрочку:</span>
-                            <span className="font-medium text-red-600">{debt.details.penalty}</span>
-                          </div>
-                        )}
+                        {debt.details?.gracePeriod && (<div><span className="text-gray-500 block text-xs mb-0.5">Беспроцентный период:</span><span className="font-medium text-gray-900">{debt.details.gracePeriod}</span></div>)}
+                        {debt.details?.penalty && (<div><span className="text-gray-500 block text-xs mb-0.5">Штраф за просрочку:</span><span className="font-medium text-red-600">{debt.details.penalty}</span></div>)}
                         <div className="md:col-span-2">
                           <span className="text-gray-500 block text-xs mb-1">Краткая выжимка (AI-анализ):</span>
-                          <p className="text-gray-700 leading-relaxed bg-white p-3 rounded-xl border border-gray-100 shadow-sm text-xs sm:text-sm">
-                            {debt.details?.summary || 'Условия не добавлены.'}
-                          </p>
+                          <p className="text-gray-700 leading-relaxed bg-white p-3 rounded-xl border border-gray-100 shadow-sm text-xs sm:text-sm">{debt.details?.summary || 'Условия не добавлены.'}</p>
                         </div>
                       </div>
                     </div>
@@ -513,7 +486,6 @@ function App() {
                 </div>
               );
             })}
-
             {debts.length === 0 && (
               <div className="text-center py-10 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                 <p className="text-gray-500">Долгов нет. Вы свободны!</p>
@@ -522,33 +494,19 @@ function App() {
           </div>
         </div>
 
-        {/* Правая колонка: Стратегия и Прогресс */}
         <div className="bg-white rounded-[24px] p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] flex flex-col">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-lg font-bold text-gray-900">Стратегия</h3>
           </div>
-
           <div className="bg-gray-50 p-1 rounded-xl flex mb-6">
-            <button 
-              onClick={() => setStrategy('avalanche')}
-              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${strategy === 'avalanche' ? 'bg-white text-gray-900 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Лавина (Выгода)
-            </button>
-            <button 
-              onClick={() => setStrategy('snowball')}
-              className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${strategy === 'snowball' ? 'bg-white text-gray-900 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              Снежный ком
-            </button>
+            <button onClick={() => { setStrategy('avalanche'); updateCloud(debts, freeMoney, 'avalanche'); }} className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${strategy === 'avalanche' ? 'bg-white text-gray-900 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}>Лавина (Выгода)</button>
+            <button onClick={() => { setStrategy('snowball'); updateCloud(debts, freeMoney, 'snowball'); }} className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${strategy === 'snowball' ? 'bg-white text-gray-900 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}>Снежный ком</button>
           </div>
 
           <div className="flex-1 flex flex-col justify-between">
             {Number(freeMoney) > 0 && totalDebt > 0 ? (
               <div className="mb-6">
-                <p className="text-sm font-medium text-gray-500 mb-4">
-                  Куда направить свободные средства:
-                </p>
+                <p className="text-sm font-medium text-gray-500 mb-4">Куда направить свободные средства:</p>
                 <div className="space-y-3">
                   {Object.entries(strategyAllocation).map(([id, amount]) => {
                     if (amount <= 0) return null;
@@ -556,9 +514,7 @@ function App() {
                     return (
                       <div key={id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-[#106A3C]/10 text-[#106A3C] flex items-center justify-center shrink-0">
-                            <TrendingDown size={14} />
-                          </div>
+                          <div className="w-6 h-6 rounded-full bg-[#106A3C]/10 text-[#106A3C] flex items-center justify-center shrink-0"><TrendingDown size={14} /></div>
                           <span className="text-sm font-medium text-gray-700 truncate max-w-[140px] sm:max-w-[200px]">{debt.name}</span>
                         </div>
                         <span className="font-bold text-[#106A3C]">+{formatMoney(amount)}</span>
@@ -569,9 +525,7 @@ function App() {
               </div>
             ) : (
               <div className="text-center py-6 mb-6 border-b border-gray-50">
-                <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-300">
-                  <Wallet size={24} />
-                </div>
+                <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-300"><Wallet size={24} /></div>
                 <p className="text-xs text-gray-500">Добавьте свободные средства для расчета досрочного погашения.</p>
               </div>
             )}
@@ -579,15 +533,10 @@ function App() {
             <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 mt-auto">
               <h4 className="text-sm font-bold text-gray-900 mb-1 text-center">Прогресс месяца</h4>
               <p className="text-xs text-gray-500 text-center mb-4">Оплачено {formatMoney(paidThisMonthAmount)} из {formatMoney(totalMinPaymentAll)}</p>
-              
               <div className="flex justify-center relative">
                 <svg className="w-32 h-32 transform -rotate-90">
                   <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-200" />
-                  <circle 
-                    cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" 
-                    strokeDasharray={circleCircumference} strokeDashoffset={circleDashoffset} 
-                    className="text-[#106A3C] transition-all duration-1000 ease-out" 
-                  />
+                  <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" strokeDasharray={circleCircumference} strokeDashoffset={circleDashoffset} className="text-[#106A3C] transition-all duration-1000 ease-out" />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="text-3xl font-bold text-gray-900">{progressPercent}%</span>
@@ -602,20 +551,15 @@ function App() {
   );
 
   const renderCalendar = () => {
-    // Сортировка строго по дате
     const calendarDebts = [...debts].sort((a, b) => new Date(a.nextPaymentDate || 0) - new Date(b.nextPaymentDate || 0));
-
     return (
       <div className="bg-white rounded-[24px] p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] max-w-3xl mx-auto">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-          <Calendar className="text-[#106A3C]" /> Календарь платежей
-        </h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3"><Calendar className="text-[#106A3C]" /> Календарь платежей</h2>
         <div className="relative border-l-2 border-gray-100 ml-4 space-y-8 py-4">
           {calendarDebts.map(debt => {
             const date = new Date(debt.nextPaymentDate);
             const formattedDate = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
             const isPast = getDaysDiff(debt.nextPaymentDate) < 0;
-
             return (
               <div key={`cal_${debt.id}`} className="relative pl-6">
                 <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white ${debt.isPaidThisMonth ? 'bg-emerald-500' : isPast ? 'bg-red-500' : 'bg-[#106A3C]'}`}></div>
@@ -640,13 +584,9 @@ function App() {
   const renderAnalytics = () => {
     const totalInterestPerMonth = debts.reduce((sum, debt) => sum + (debt.rate > 0 ? (Number(debt.balance) * (Number(debt.rate) / 100)) / 12 : 0), 0);
     const averageRate = debts.filter(d=>d.rate>0).length ? debts.filter(d=>d.rate>0).reduce((sum,d)=>sum+Number(d.rate),0) / debts.filter(d=>d.rate>0).length : 0;
-
     return (
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-          <PieChart className="text-[#106A3C]" /> Аналитика портфеля
-        </h2>
-        
+        <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3"><PieChart className="text-[#106A3C]" /> Аналитика портфеля</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
             <p className="text-gray-500 text-sm font-medium mb-2">Сгорает на проценты</p>
@@ -664,19 +604,13 @@ function App() {
             <p className="text-xs text-gray-500 mt-2">Цель: свести к нулю.</p>
           </div>
         </div>
-
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
           <h4 className="font-bold text-gray-900 mb-6">Структура долга</h4>
           <div className="space-y-4">
             {debts.sort((a,b)=>b.balance - a.balance).map(debt => (
               <div key={`stat_${debt.id}`}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium text-gray-700">{debt.name}</span>
-                  <span className="font-bold text-gray-900">{Math.round((debt.balance / totalDebt) * 100)}%</span>
-                </div>
-                <div className="w-full bg-gray-100 rounded-full h-2">
-                  <div className="bg-[#106A3C] h-2 rounded-full" style={{ width: `${(debt.balance / totalDebt) * 100}%` }}></div>
-                </div>
+                <div className="flex justify-between text-sm mb-1"><span className="font-medium text-gray-700">{debt.name}</span><span className="font-bold text-gray-900">{Math.round((debt.balance / totalDebt) * 100)}%</span></div>
+                <div className="w-full bg-gray-100 rounded-full h-2"><div className="bg-[#106A3C] h-2 rounded-full" style={{ width: `${(debt.balance / totalDebt) * 100}%` }}></div></div>
               </div>
             ))}
           </div>
@@ -686,22 +620,16 @@ function App() {
   };
 
   const renderInvestingPlan = () => {
-    // Очень простой калькулятор сложного процента (для мотивации)
     const monthlyInvestment = totalMinPaymentAll + Number(freeMoney);
     const monthsToPayoff = monthlyInvestment > 0 ? Math.ceil(totalDebt / monthlyInvestment) : 0;
-    
-    // Считаем капитал через 10 лет инвестирования этой же суммы под 12% годовых
-    const r = 0.12 / 12; // месячная ставка
-    const n = 120; // 10 лет в месяцах
+    const r = 0.12 / 12;
+    const n = 120;
     const futureValue = monthlyInvestment * ((Math.pow(1 + r, n) - 1) / r);
 
     return (
       <div className="max-w-4xl mx-auto space-y-6">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-          <Target className="text-[#106A3C] w-8 h-8" /> Жизнь после долгов
-        </h2>
+        <h2 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3"><Target className="text-[#106A3C] w-8 h-8" /> Жизнь после долгов</h2>
         <p className="text-gray-500 mb-8">План превращения ваших кредитных платежей в личный капитал.</p>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl">
             <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full blur-3xl -mr-10 -mt-10"></div>
@@ -710,7 +638,6 @@ function App() {
             <h3 className="text-4xl font-bold tracking-tight mb-2">~ {monthsToPayoff} мес.</h3>
             <p className="text-sm text-white/80">При платежах {formatMoney(monthlyInvestment)}/мес.</p>
           </div>
-
           <div className="bg-gradient-to-br from-[#106A3C] to-[#0a4a29] rounded-3xl p-8 text-white relative overflow-hidden shadow-xl shadow-[#106A3C]/20">
             <div className="absolute bottom-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-2xl -mr-10 -mb-10"></div>
             <TrendingUp className="text-white/30 w-10 h-10 mb-4" />
@@ -719,7 +646,6 @@ function App() {
             <p className="text-sm text-white/80">Если инвестировать эти деньги под 12% год.</p>
           </div>
         </div>
-
         <div className="bg-white p-6 md:p-8 rounded-3xl border border-gray-100 shadow-sm">
           <h4 className="text-lg font-bold text-gray-900 mb-4">Как это работает?</h4>
           <div className="space-y-4 text-gray-600 leading-relaxed text-sm md:text-base">
@@ -732,8 +658,6 @@ function App() {
       </div>
     );
   };
-
-  // --- РЕНДЕР ОСНОВНОГО КАРКАСА --- //
 
   const renderActiveTab = () => {
     switch(activeTab) {
@@ -749,20 +673,13 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#F4F6F8] text-gray-800 font-sans flex overflow-hidden selection:bg-[#106A3C]/20">
-      
-      {isSidebarOpen && (
-        <div className="fixed inset-0 bg-gray-900/20 backdrop-blur-sm z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />
-      )}
+      {isSidebarOpen && (<div className="fixed inset-0 bg-gray-900/20 backdrop-blur-sm z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} />)}
 
       <aside className={`fixed lg:static inset-y-0 left-0 w-[260px] bg-white border-r border-gray-100 z-50 transform transition-transform duration-300 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-6 flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#106A3C] rounded-xl flex items-center justify-center text-white font-bold shrink-0">
-            <Wallet size={18} />
-          </div>
+          <div className="w-8 h-8 bg-[#106A3C] rounded-xl flex items-center justify-center text-white font-bold shrink-0"><Wallet size={18} /></div>
           <span className="font-bold text-xl tracking-tight text-gray-900">Свобода.</span>
-          <button className="ml-auto lg:hidden text-gray-500" onClick={() => setIsSidebarOpen(false)}>
-            <X size={20} />
-          </button>
+          <button className="ml-auto lg:hidden text-gray-500" onClick={() => setIsSidebarOpen(false)}><X size={20} /></button>
         </div>
 
         <div className="px-4 py-2">
@@ -789,46 +706,30 @@ function App() {
             <div className="relative z-10">
               <h4 className="font-semibold mb-1 text-sm">Жизнь без долгов</h4>
               <p className="text-[11px] text-gray-400 mb-4 leading-tight">Ваш план создания капитала</p>
-              <button 
-                onClick={() => {setActiveTab('investing'); setIsSidebarOpen(false);}}
-                className="w-full bg-[#106A3C] hover:bg-[#0c502d] text-white text-xs font-medium py-2 rounded-xl transition-colors"
-              >
-                Читать план
-              </button>
+              <button onClick={() => {setActiveTab('investing'); setIsSidebarOpen(false);}} className="w-full bg-[#106A3C] hover:bg-[#0c502d] text-white text-xs font-medium py-2 rounded-xl transition-colors">Читать план</button>
             </div>
           </div>
         </div>
       </aside>
 
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        
         <header className="bg-white/60 backdrop-blur-md border-b border-gray-100 lg:border-none sticky top-0 z-30">
           <div className="flex items-center justify-between p-4 lg:px-8 lg:py-6">
             <div className="flex items-center gap-4 flex-1">
-              <button className="p-2 -ml-2 text-gray-600 lg:hidden" onClick={() => setIsSidebarOpen(true)}>
-                <Menu size={24} />
-              </button>
+              <button className="p-2 -ml-2 text-gray-600 lg:hidden" onClick={() => setIsSidebarOpen(true)}><Menu size={24} /></button>
             </div>
             
             <div className="flex items-center gap-3 lg:gap-5">
-              
-              {/* Уведомления */}
               <div className="relative">
-                <button 
-                  onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                  className="p-2 text-gray-500 hover:text-gray-900 relative rounded-full hover:bg-gray-100 transition-colors"
-                >
+                <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} className="p-2 text-gray-500 hover:text-gray-900 relative rounded-full hover:bg-gray-100 transition-colors">
                   <Bell size={20} />
                   {notifications.length > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>}
                 </button>
-                
                 {isNotificationsOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)}></div>
                     <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 overflow-hidden transform origin-top-right transition-all">
-                      <div className="p-4 border-b border-gray-50 bg-gray-50/50">
-                        <h4 className="font-bold text-gray-900 text-sm">Уведомления</h4>
-                      </div>
+                      <div className="p-4 border-b border-gray-50 bg-gray-50/50"><h4 className="font-bold text-gray-900 text-sm">Уведомления</h4></div>
                       <div className="max-h-[60vh] overflow-y-auto">
                         {notifications.length === 0 ? (
                           <div className="p-6 text-center text-gray-500 text-sm">Все отлично! Нет срочных уведомлений.</div>
@@ -837,10 +738,7 @@ function App() {
                             <div key={notif.id} className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors">
                               <div className="flex items-start gap-3">
                                 {notif.type === 'error' ? <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" /> : <Clock size={18} className="text-orange-500 shrink-0 mt-0.5" />}
-                                <div>
-                                  <h5 className={`text-sm font-bold ${notif.type === 'error' ? 'text-red-600' : 'text-gray-900'}`}>{notif.title}</h5>
-                                  <p className="text-xs text-gray-600 mt-1 leading-relaxed">{notif.text}</p>
-                                </div>
+                                <div><h5 className={`text-sm font-bold ${notif.type === 'error' ? 'text-red-600' : 'text-gray-900'}`}>{notif.title}</h5><p className="text-xs text-gray-600 mt-1 leading-relaxed">{notif.text}</p></div>
                               </div>
                             </div>
                           ))
@@ -854,40 +752,32 @@ function App() {
               <div className="flex items-center gap-3 pl-2 lg:pl-5 lg:border-l border-gray-200">
                 <div className="text-right hidden sm:block">
                   <p className="text-sm font-semibold text-gray-900 leading-tight">Мой профиль</p>
-                  <p className="text-xs text-gray-500">Локальный план</p>
+                  <p className="text-xs text-gray-500 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span> Облако</p>
                 </div>
-                <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center text-gray-500">
-                  <Wallet size={20} />
-                </div>
+                <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden flex items-center justify-center text-gray-500"><Wallet size={20} /></div>
               </div>
             </div>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-8">
-          {/* Сюда подставляется нужный экран в зависимости от меню */}
           {renderActiveTab()}
         </div>
       </main>
 
-      {/* Модалка добавления долга */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white border border-gray-100 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
             <div className="p-6 md:p-8">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-gray-900">Новый долг</h3>
-                <button onClick={() => setIsAddModalOpen(false)} className="text-gray-400 hover:text-gray-900 bg-gray-50 p-2 rounded-full transition-colors">
-                  <X size={20} />
-                </button>
+                <button onClick={() => setIsAddModalOpen(false)} className="text-gray-400 hover:text-gray-900 bg-gray-50 p-2 rounded-full transition-colors"><X size={20} /></button>
               </div>
-              
               <form onSubmit={handleAddDebt} className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Название банка или кредита</label>
                   <input required type="text" value={newDebt.name} onChange={e => setNewDebt({...newDebt, name: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-gray-900 focus:outline-none focus:border-[#106A3C] focus:bg-white transition-colors" placeholder="Например: Кредитка Тинькофф" />
                 </div>
-                
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Остаток (₽)</label>
@@ -898,34 +788,22 @@ function App() {
                     <input required type="number" step="0.1" value={newDebt.rate} onChange={e => setNewDebt({...newDebt, rate: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-gray-900 focus:outline-none focus:border-[#106A3C] focus:bg-white transition-colors" placeholder="19.9" />
                   </div>
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Ежемесячный платеж (₽)</label>
                   <input required type="number" value={newDebt.minPayment} onChange={e => setNewDebt({...newDebt, minPayment: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-gray-900 focus:outline-none focus:border-[#106A3C] focus:bg-white transition-colors" placeholder="5000" />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Дата платежа</label>
                   <input required type="date" value={newDebt.nextPaymentDate} onChange={e => setNewDebt({...newDebt, nextPaymentDate: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-gray-900 focus:outline-none focus:border-[#106A3C] focus:bg-white transition-colors" />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5 flex justify-between items-center">
-                    <span>Краткие условия (ИИ выжимка)</span>
-                    <span className="text-xs text-gray-400 font-normal">Необязательно</span>
+                    <span>Краткие условия (ИИ выжимка)</span><span className="text-xs text-gray-400 font-normal">Необязательно</span>
                   </label>
-                  <textarea 
-                    value={newDebt.detailsSummary} 
-                    onChange={e => setNewDebt({...newDebt, detailsSummary: e.target.value})} 
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-gray-900 focus:outline-none focus:border-[#106A3C] focus:bg-white transition-colors resize-none h-24 text-sm" 
-                    placeholder="Сюда можно вставить результат анализа договора."
-                  />
+                  <textarea value={newDebt.detailsSummary} onChange={e => setNewDebt({...newDebt, detailsSummary: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-gray-900 focus:outline-none focus:border-[#106A3C] focus:bg-white transition-colors resize-none h-24 text-sm" placeholder="Сюда можно вставить результат анализа договора." />
                 </div>
-
                 <div className="pt-2">
-                  <button type="submit" className="w-full bg-[#106A3C] hover:bg-[#0c502d] text-white font-medium py-3.5 rounded-xl transition-colors shadow-lg shadow-[#106A3C]/20">
-                    Добавить в дашборд
-                  </button>
+                  <button type="submit" className="w-full bg-[#106A3C] hover:bg-[#0c502d] text-white font-medium py-3.5 rounded-xl transition-colors shadow-lg shadow-[#106A3C]/20">Добавить в дашборд</button>
                 </div>
               </form>
             </div>
@@ -933,15 +811,5 @@ function App() {
         </div>
       )}
     </div>
-  );
-}
-
-const rootElement = document.getElementById('root');
-if (rootElement) {
-  const root = createRoot(rootElement);
-  root.render(
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
   );
 }
