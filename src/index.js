@@ -148,6 +148,15 @@ function App() {
   const totalDebt = debts.reduce((sum, d) => sum + Number(d.balance || 0), 0);
   const totalMinPayment = debts.reduce((sum, d) => sum + (d.isPaidThisMonth ? 0 : Number(d.minPayment || 0)), 0);
   
+  // НОВЫЕ ВЫЧИСЛЕНИЯ ДЛЯ ПРОГРЕССА
+  const totalMinPaymentAll = debts.reduce((sum, d) => sum + Number(d.minPayment || 0), 0);
+  const paidThisMonthAmount = debts.filter(d => d.isPaidThisMonth).reduce((sum, d) => sum + Number(d.minPayment || 0), 0);
+  const progressPercent = totalMinPaymentAll === 0 ? 0 : Math.round((paidThisMonthAmount / totalMinPaymentAll) * 100);
+  
+  // Длина окружности для графика (2 * pi * r), где r = 56
+  const circleCircumference = 351.8;
+  const circleDashoffset = circleCircumference - (progressPercent / 100) * circleCircumference;
+
   const overdueDebts = debts.filter(d => !d.isPaidThisMonth && getDaysDiff(d.nextPaymentDate) < 0);
   const totalOverdue = overdueDebts.reduce((sum, d) => sum + Number(d.minPayment || 0), 0);
 
@@ -188,6 +197,13 @@ function App() {
       }
       return d;
     }));
+  };
+
+  // ФУНКЦИЯ СБРОСА МЕСЯЦА
+  const handleResetMonth = () => {
+    if (window.confirm('Вы уверены, что хотите сбросить статусы всех платежей для нового месяца?')) {
+      setDebts(debts.map(d => ({ ...d, isPaidThisMonth: false })));
+    }
   };
 
   const handleAddDebt = (e) => {
@@ -394,9 +410,18 @@ function App() {
               <div className="lg:col-span-2 bg-white rounded-[24px] p-6 border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)]">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-lg font-bold text-gray-900">Ближайшие платежи</h3>
-                  <button className="text-sm font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors">
-                    Все долги
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={handleResetMonth}
+                      className="text-xs font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-full hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                      title="Начать новый месяц (сбросить все галочки 'Оплачено')"
+                    >
+                      Новый месяц
+                    </button>
+                    <button className="text-xs font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors">
+                      Все долги
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="space-y-4">
@@ -589,10 +614,11 @@ function App() {
                   </button>
                 </div>
 
-                <div className="flex-1 flex flex-col justify-center">
+                {/* НОВЫЙ БЛОК: Стратегия + График прогресса */}
+                <div className="flex-1 flex flex-col justify-between">
                   {Number(freeMoney) > 0 && totalDebt > 0 ? (
-                    <div>
-                      <p className="text-sm font-medium text-gray-500 mb-4 text-center">
+                    <div className="mb-6">
+                      <p className="text-sm font-medium text-gray-500 mb-4">
                         Куда направить свободные средства:
                       </p>
                       <div className="space-y-3">
@@ -602,36 +628,54 @@ function App() {
                           return (
                             <div key={id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
                               <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-[#106A3C]/10 text-[#106A3C] flex items-center justify-center">
+                                <div className="w-6 h-6 rounded-full bg-[#106A3C]/10 text-[#106A3C] flex items-center justify-center shrink-0">
                                   <TrendingDown size={14} />
                                 </div>
-                                <span className="text-sm font-medium text-gray-700 truncate max-w-[120px] sm:max-w-xs">{debt.name}</span>
+                                <span className="text-sm font-medium text-gray-700 truncate max-w-[140px] sm:max-w-[200px]">{debt.name}</span>
                               </div>
                               <span className="font-bold text-[#106A3C]">+{formatMoney(amount)}</span>
                             </div>
                           );
                         })}
                       </div>
-                      
-                      <div className="mt-8 flex justify-center relative">
-                        <svg className="w-32 h-32 transform -rotate-90">
-                          <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-100" />
-                          <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" strokeDasharray="351.8" strokeDashoffset="150" className="text-[#106A3C]" />
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <span className="text-2xl font-bold text-gray-900">План</span>
-                          <span className="text-xs text-gray-500">активен</span>
-                        </div>
-                      </div>
                     </div>
                   ) : (
-                    <div className="text-center py-8">
-                      <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
-                        <Wallet size={32} />
+                    <div className="text-center py-6 mb-6 border-b border-gray-50">
+                      <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-300">
+                        <Wallet size={24} />
                       </div>
-                      <p className="text-sm text-gray-500">Добавьте свободные средства для расчета оптимального плана закрытия.</p>
+                      <p className="text-xs text-gray-500">Добавьте свободные средства для расчета досрочного погашения.</p>
                     </div>
                   )}
+
+                  {/* Оживший график прогресса месяца */}
+                  <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 mt-auto">
+                    <h4 className="text-sm font-bold text-gray-900 mb-1 text-center">Прогресс месяца</h4>
+                    <p className="text-xs text-gray-500 text-center mb-4">Оплачено {formatMoney(paidThisMonthAmount)} из {formatMoney(totalMinPaymentAll)}</p>
+                    
+                    <div className="flex justify-center relative">
+                      <svg className="w-32 h-32 transform -rotate-90">
+                        {/* Серый фон круга */}
+                        <circle cx="64" cy="64" r="56" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-200" />
+                        {/* Зеленый прогресс */}
+                        <circle 
+                          cx="64" 
+                          cy="64" 
+                          r="56" 
+                          stroke="currentColor" 
+                          strokeWidth="12" 
+                          fill="transparent" 
+                          strokeDasharray={circleCircumference} 
+                          strokeDashoffset={circleDashoffset} 
+                          className="text-[#106A3C] transition-all duration-1000 ease-out" 
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-3xl font-bold text-gray-900">{progressPercent}%</span>
+                        <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Готово</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
