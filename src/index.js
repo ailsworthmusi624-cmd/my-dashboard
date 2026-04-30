@@ -5,10 +5,9 @@ import {
   CheckCircle2, X, Menu, Bell, LayoutDashboard,
   PieChart, ChevronDown, ChevronUp, Target, WifiOff,
   RotateCcw, Edit3, Save, Calculator, RefreshCw, Upload,
-  TrendingUp, Info
+  TrendingUp, Info, ChevronLeft, ChevronRight, Landmark
 } from 'lucide-react';
 
-// ─── FIREBASE ────────────────────────────────────────────────────────────────
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -61,6 +60,15 @@ const initialDebts = [
   { id:7, name:'Яндекс Сплит (Рассрочка)', balance:25000,  rate:0,    minPayment:6250,  nextPaymentDate:daysFrom(4),  isPaidThisMonth:false, loanType:'installment', details:{ penalty:'Разовый штраф',  summary:'Процентов нет. Просрочка — разовая комиссия.' } },
 ];
 
+const initialDeposits = [
+  {
+    id: 'd1', name: 'Вклад Сбер', type: 'deposit',
+    amount: 100000, rate: 16.0,
+    startDate: '2025-01-15', endDate: '2026-01-15',
+    capitalization: true, payoutPeriod: 'monthly', notes: 'Автопролонгация',
+  },
+];
+
 // ─── УТИЛИТЫ ─────────────────────────────────────────────────────────────────
 const fmt = (v) => new Intl.NumberFormat('ru-RU', { style:'currency', currency:'RUB', maximumFractionDigits:0 }).format(v || 0);
 
@@ -76,25 +84,26 @@ const fmtDate = (dateStr, opts={}) => {
   return new Date(y,m-1,d).toLocaleDateString('ru-RU', opts);
 };
 
-// Аннуитетный график платежей
-const calcAnnuitySchedule = (principal, annualRate, monthlyPayment) => {
+const calcAnnuitySchedule = (principal, annualRate, monthlyPayment, startDateStr) => {
   if (!principal || !monthlyPayment || principal <= 0 || monthlyPayment <= 0) return [];
   const r = annualRate / 100 / 12;
   const rows = [];
   let bal = principal;
   let month = 1;
+  let curDate = startDateStr ? new Date(startDateStr) : new Date();
   while (bal > 0.5 && month <= 600) {
     const interest   = r > 0 ? bal * r : 0;
     const principal_ = Math.min(bal, monthlyPayment - interest);
     if (principal_ <= 0) break;
     bal = Math.max(0, bal - principal_);
-    rows.push({ month, payment: monthlyPayment, interest, principal: principal_, balance: bal });
+    const dateLabel = curDate.toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' });
+    rows.push({ month, payment: monthlyPayment, interest, principal: principal_, balance: bal, dateLabel });
+    curDate = new Date(curDate.getFullYear(), curDate.getMonth() + 1, curDate.getDate());
     month++;
   }
   return rows;
 };
 
-// Калькулятор досрочного погашения
 const calcEarlyPayoff = (balance, annualRate, monthlyPayment, extraAmount) => {
   const r = annualRate / 100 / 12;
   const simulate = (pmt) => {
@@ -121,6 +130,26 @@ const calcEarlyPayoff = (balance, annualRate, monthlyPayment, extraAmount) => {
   };
 };
 
+// Расчёт дохода по вкладу
+const calcDepositIncome = (amount, annualRate, startDate, endDate, capitalization) => {
+  if (!amount || !annualRate || !startDate || !endDate) return { income: 0, total: 0, months: 0, effectiveRate: 0 };
+  const start = new Date(startDate);
+  const end   = new Date(endDate);
+  const days  = Math.max(1, Math.ceil((end - start) / 86400000));
+  const months = days / 30.44;
+  const r = annualRate / 100;
+  let income = 0;
+  if (capitalization) {
+    const n = Math.round(months);
+    const total = amount * Math.pow(1 + r / 12, n);
+    income = total - amount;
+  } else {
+    income = amount * r * (days / 365);
+  }
+  const effectiveRate = (income / amount) * (365 / days) * 100;
+  return { income, total: amount + income, months, effectiveRate };
+};
+
 // ─── МЕЛКИЕ КОМПОНЕНТЫ ───────────────────────────────────────────────────────
 function DaysBadge({ days, paid }) {
   if (paid)       return <span className="text-[10px] font-black px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-600 uppercase tracking-widest">Оплачено</span>;
@@ -144,7 +173,6 @@ function MiniBar({ label, pct, color }) {
   );
 }
 
-// SVG-линейный график (без recharts)
 function LineChart({ data }) {
   if (!data || data.length < 2) return (
     <div className="text-center py-12 bg-slate-50 rounded-2xl">
@@ -197,13 +225,23 @@ function LineChart({ data }) {
 
 // ─── ВКЛАДКА: КАЛЕНДАРЬ ──────────────────────────────────────────────────────
 function CalendarTab({ debts }) {
-  const now   = new Date();
-  const year  = now.getFullYear();
-  const month = now.getMonth();
-  const daysInMonth = new Date(year, month+1, 0).getDate();
-  const startOffset = (new Date(year, month, 1).getDay() + 6) % 7;
-  const todayDay = now.getDate();
+  const [viewDate, setViewDate] = useState(() => {
+    const d = new Date(); d.setDate(1); return d;
+  });
+
+  const year  = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const daysInMonth   = new Date(year, month + 1, 0).getDate();
+  const startOffset   = (new Date(year, month, 1).getDay() + 6) % 7;
+  const now           = new Date();
+  const isCurrentMonth = now.getFullYear() === year && now.getMonth() === month;
+  const todayDay      = isCurrentMonth ? now.getDate() : -1;
+
   const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+
+  const prevMonth = () => setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+  const nextMonth = () => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+  const goToday   = () => setViewDate(() => { const d = new Date(); d.setDate(1); return d; });
 
   const byDay = useMemo(() => {
     const map = {};
@@ -216,13 +254,40 @@ function CalendarTab({ debts }) {
   }, [debts, year, month]);
 
   const cells = [...Array(startOffset).fill(null), ...Array.from({length:daysInMonth},(_,i)=>i+1)];
-  const upcoming = [...debts].sort((a,b)=>getDaysDiff(a.nextPaymentDate)-getDaysDiff(b.nextPaymentDate));
+
+  // Платежи этого месяца для списка — показываем все независимо от месяца
+  const monthDebts = debts.filter(d => {
+    if (!d.nextPaymentDate) return false;
+    const [y,m] = d.nextPaymentDate.split('-').map(Number);
+    return y === year && m - 1 === month;
+  }).sort((a,b) => {
+    const [,, da] = a.nextPaymentDate.split('-').map(Number);
+    const [,, db] = b.nextPaymentDate.split('-').map(Number);
+    return da - db;
+  });
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <h2 className="text-3xl font-black text-slate-900 flex items-center gap-3"><Calendar className="text-emerald-600" size={30}/> Календарь платежей</h2>
       <div className="bg-white rounded-[32px] border border-slate-100 p-6 md:p-8 shadow-sm">
-        <div className="text-xl font-black text-slate-900 mb-6">{monthNames[month]} {year}</div>
+        {/* Навигация */}
+        <div className="flex items-center justify-between mb-6">
+          <button onClick={prevMonth} className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors">
+            <ChevronLeft size={20}/>
+          </button>
+          <div className="flex items-center gap-3">
+            <span className="text-xl font-black text-slate-900">{monthNames[month]} {year}</span>
+            {!isCurrentMonth && (
+              <button onClick={goToday} className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-colors uppercase tracking-widest">
+                Сегодня
+              </button>
+            )}
+          </div>
+          <button onClick={nextMonth} className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors">
+            <ChevronRight size={20}/>
+          </button>
+        </div>
+
         <div className="grid grid-cols-7 mb-2">
           {['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(d=>(
             <div key={d} className="text-center text-[10px] font-black text-slate-300 uppercase tracking-widest py-2">{d}</div>
@@ -231,7 +296,7 @@ function CalendarTab({ debts }) {
         <div className="grid grid-cols-7 gap-1">
           {cells.map((day,idx)=>{
             if (!day) return <div key={`e${idx}`}/>;
-            const isToday = day===todayDay;
+            const isToday = day === todayDay;
             const has = byDay[day];
             const isPaid    = has && has.every(d=>d.isPaidThisMonth);
             const isOverdue = has && has.some(d=>!d.isPaidThisMonth && getDaysDiff(d.nextPaymentDate)<0);
@@ -248,30 +313,41 @@ function CalendarTab({ debts }) {
           })}
         </div>
       </div>
+
+      {/* Список платежей выбранного месяца */}
       <div className="bg-white rounded-[32px] border border-slate-100 p-6 md:p-8 shadow-sm">
-        <h3 className="font-black text-lg text-slate-900 mb-6">Все платежи по датам</h3>
-        <div className="space-y-3">
-          {upcoming.map(d=>{
-            const days = getDaysDiff(d.nextPaymentDate);
-            return (
-              <div key={d.id} className={`flex items-center justify-between p-4 rounded-2xl border ${d.isPaidThisMonth?'border-slate-100 opacity-40':days<0?'border-red-100 bg-red-50/30':days<=3?'border-orange-100 bg-orange-50/30':'border-slate-100'}`}>
-                <div className="flex items-center gap-4">
-                  <div className={`w-14 h-10 rounded-xl flex items-center justify-center text-[11px] font-black shrink-0 ${d.isPaidThisMonth?'bg-emerald-100 text-emerald-700':days<0?'bg-red-100 text-red-700':'bg-slate-100 text-slate-700'}`}>
-                    {fmtDate(d.nextPaymentDate,{day:'numeric',month:'short'})}
+        <h3 className="font-black text-lg text-slate-900 mb-6">
+          Платежи — {monthNames[month]} {year}
+          <span className="ml-3 text-sm font-bold text-slate-400">
+            {fmt(monthDebts.reduce((s,d) => s + d.minPayment, 0))} итого
+          </span>
+        </h3>
+        {monthDebts.length === 0 ? (
+          <div className="text-center py-8 text-slate-400 text-sm font-medium">Нет платежей в этом месяце</div>
+        ) : (
+          <div className="space-y-3">
+            {monthDebts.map(d=>{
+              const days = getDaysDiff(d.nextPaymentDate);
+              return (
+                <div key={d.id} className={`flex items-center justify-between p-4 rounded-2xl border ${d.isPaidThisMonth?'border-slate-100 opacity-40':days<0?'border-red-100 bg-red-50/30':days<=3?'border-orange-100 bg-orange-50/30':'border-slate-100'}`}>
+                  <div className="flex items-center gap-4">
+                    <div className={`w-14 h-10 rounded-xl flex items-center justify-center text-[11px] font-black shrink-0 ${d.isPaidThisMonth?'bg-emerald-100 text-emerald-700':days<0?'bg-red-100 text-red-700':'bg-slate-100 text-slate-700'}`}>
+                      {fmtDate(d.nextPaymentDate,{day:'numeric',month:'short'})}
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-900 text-sm">{d.name}</div>
+                      <div className="text-[11px] text-slate-400 font-medium">{d.rate>0?`${d.rate}%`:'Рассрочка 0%'}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-bold text-slate-900 text-sm">{d.name}</div>
-                    <div className="text-[11px] text-slate-400 font-medium">{d.rate>0?`${d.rate}%`:'Рассрочка 0%'}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="font-black text-slate-900">{fmt(d.minPayment)}</div>
+                    <DaysBadge days={days} paid={d.isPaidThisMonth}/>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="font-black text-slate-900">{fmt(d.minPayment)}</div>
-                  <DaysBadge days={days} paid={d.isPaidThisMonth}/>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -309,7 +385,6 @@ function AnalyticsTab({ debts, totalDebt, totalMinPaymentAll, debtHistory }) {
         ))}
       </div>
 
-      {/* Динамика долга */}
       <div className="bg-white p-7 rounded-[32px] border border-slate-100 shadow-sm">
         <h3 className="font-black text-slate-900 text-lg mb-1 flex items-center gap-2"><TrendingDown className="text-emerald-500" size={20}/> Динамика общего долга</h3>
         <p className="text-xs text-slate-400 font-medium mb-5">Снижение долга по месяцам (факт)</p>
@@ -432,11 +507,40 @@ function CalcTab({ debts }) {
     };
   },[refiDebt,refiRate,refiTerm]);
 
-  // Аннуитетный график
+  // Аннуитетный график — с настройкой из договора
   const [annDebtId,    setAnnDebtId]    = useState('');
   const [showAllRows,  setShowAllRows]  = useState(false);
-  const annDebt    = debts.find(d=>d.id==annDebtId);
-  const annSchedule = useMemo(()=> annDebt ? calcAnnuitySchedule(annDebt.balance,annDebt.rate,annDebt.minPayment) : [], [annDebt]);
+
+  // Кастомные параметры графика (из договора)
+  const [annCustomBalance,  setAnnCustomBalance]  = useState('');
+  const [annCustomRate,     setAnnCustomRate]      = useState('');
+  const [annCustomPayment,  setAnnCustomPayment]   = useState('');
+  const [annCustomStartDate,setAnnCustomStartDate] = useState('');
+  const [useCustomParams,   setUseCustomParams]    = useState(false);
+
+  const annDebt = debts.find(d=>d.id==annDebtId);
+
+  // При выборе долга подставляем его данные как default
+  useEffect(() => {
+    if (annDebt) {
+      setAnnCustomBalance(String(annDebt.balance));
+      setAnnCustomRate(String(annDebt.rate));
+      setAnnCustomPayment(String(annDebt.minPayment));
+      setUseCustomParams(false);
+      setShowAllRows(false);
+    }
+  }, [annDebtId]);
+
+  const annBalance  = useCustomParams ? Number(annCustomBalance)  : (annDebt?.balance || 0);
+  const annRate     = useCustomParams ? Number(annCustomRate)     : (annDebt?.rate || 0);
+  const annPayment  = useCustomParams ? Number(annCustomPayment)  : (annDebt?.minPayment || 0);
+  const annStartDate = annCustomStartDate || '';
+
+  const annSchedule = useMemo(()=> {
+    if (!annBalance || !annRate || !annPayment) return [];
+    return calcAnnuitySchedule(annBalance, annRate, annPayment, annStartDate || undefined);
+  }, [annBalance, annRate, annPayment, annStartDate]);
+
   const visibleRows = showAllRows ? annSchedule : annSchedule.slice(0,12);
 
   const inCls = "w-full bg-slate-50 p-3.5 rounded-2xl outline-none font-bold text-slate-900 border border-transparent focus:border-emerald-300 focus:ring-2 ring-emerald-100 transition-all text-sm";
@@ -564,21 +668,59 @@ function CalcTab({ debts }) {
       {tab==='annuity'&&(
         <div className="bg-white rounded-[32px] border border-slate-100 p-7 shadow-sm">
           <h3 className="font-black text-xl text-slate-900 mb-1">График платежей (аннуитет)</h3>
-          <p className="text-xs text-slate-400 mb-6 font-medium">Точное разложение каждого платежа: проценты и тело долга по месяцам</p>
-          <div className="mb-6">
-            <label className={lCls}>Выберите кредит</label>
-            <select className={selCls} value={annDebtId} onChange={e=>{ setAnnDebtId(e.target.value); setShowAllRows(false); }}>
+          <p className="text-xs text-slate-400 mb-6 font-medium">Разложение каждого платежа по договору — проценты и тело долга</p>
+
+          {/* Выбор кредита */}
+          <div className="mb-5">
+            <label className={lCls}>Выберите кредит из списка</label>
+            <select className={selCls} value={annDebtId} onChange={e=>{ setAnnDebtId(e.target.value); }}>
               <option value="">— выберите кредит —</option>
               {debts.filter(d=>d.rate>0).map(d=><option key={d.id} value={d.id}>{d.name} ({d.rate}%)</option>)}
             </select>
           </div>
-          {annDebt&&annSchedule.length>0&&(
+
+          {/* Тоггл: параметры из договора */}
+          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl cursor-pointer mb-5"
+            onClick={() => setUseCustomParams(v => !v)}>
+            <div className={`w-12 h-6 rounded-full transition-colors ${useCustomParams ? 'bg-emerald-500' : 'bg-slate-300'} relative shrink-0`}>
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${useCustomParams ? 'left-7' : 'left-1'}`}/>
+            </div>
+            <div>
+              <span className="text-sm font-bold text-slate-700">Ввести параметры вручную (из договора)</span>
+              <p className="text-[10px] text-slate-400 mt-0.5">Для точного расчёта по реальным данным</p>
+            </div>
+          </div>
+
+          {/* Параметры из договора */}
+          {useCustomParams && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-5 bg-emerald-50 rounded-2xl border border-emerald-100">
+              <div>
+                <label className={lCls}>Остаток по договору ₽</label>
+                <input type="number" className={inCls} value={annCustomBalance} onChange={e=>setAnnCustomBalance(e.target.value)} placeholder="250000"/>
+              </div>
+              <div>
+                <label className={lCls}>Ставка % год.</label>
+                <input type="number" step="0.1" className={inCls} value={annCustomRate} onChange={e=>setAnnCustomRate(e.target.value)} placeholder="21.5"/>
+              </div>
+              <div>
+                <label className={lCls}>Платёж ₽/мес</label>
+                <input type="number" className={inCls} value={annCustomPayment} onChange={e=>setAnnCustomPayment(e.target.value)} placeholder="8500"/>
+              </div>
+              <div>
+                <label className={lCls}>Дата первого платежа</label>
+                <input type="date" className={inCls + ' text-slate-500'} value={annCustomStartDate} onChange={e=>setAnnCustomStartDate(e.target.value)}/>
+              </div>
+            </div>
+          )}
+
+          {annSchedule.length > 0 && (
             <>
               <div className="flex flex-wrap gap-3 mb-5">
                 {[
                   { lbl:'Месяцев', val:`${annSchedule.length}`, cls:'text-slate-900' },
                   { lbl:'Переплата', val:fmt(annSchedule.reduce((s,r)=>s+r.interest,0)), cls:'text-red-500' },
                   { lbl:'Итого выплатите', val:fmt(annSchedule.reduce((s,r)=>s+r.payment,0)), cls:'text-slate-900' },
+                  { lbl:'Завершение', val: annSchedule[annSchedule.length-1]?.dateLabel || '—', cls:'text-slate-600' },
                 ].map(c=>(
                   <div key={c.lbl} className="bg-slate-50 px-5 py-3 rounded-2xl">
                     <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{c.lbl}</div>
@@ -587,10 +729,10 @@ function CalcTab({ debts }) {
                 ))}
               </div>
               <div className="overflow-x-auto rounded-2xl border border-slate-100">
-                <table className="w-full text-sm min-w-[480px]">
+                <table className="w-full text-sm min-w-[560px]">
                   <thead>
                     <tr className="bg-slate-50">
-                      {['Мес.','Платёж','Проценты','Тело долга','Остаток'].map(h=>(
+                      {['Мес.','Дата','Платёж','Проценты','Тело долга','Остаток'].map(h=>(
                         <th key={h} className="text-left p-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">{h}</th>
                       ))}
                     </tr>
@@ -599,6 +741,7 @@ function CalcTab({ debts }) {
                     {visibleRows.map(row=>(
                       <tr key={row.month} className="border-t border-slate-50 hover:bg-slate-50/60 transition-colors">
                         <td className="p-3 font-bold text-slate-400">{row.month}</td>
+                        <td className="p-3 font-medium text-slate-500 text-xs">{row.dateLabel}</td>
                         <td className="p-3 font-black text-slate-900">{fmt(row.payment)}</td>
                         <td className="p-3 font-bold text-red-500">{fmt(row.interest)}</td>
                         <td className="p-3 font-bold text-emerald-600">{fmt(row.principal)}</td>
@@ -615,9 +758,14 @@ function CalcTab({ debts }) {
               )}
             </>
           )}
-          {annDebt&&annSchedule.length===0&&(
+          {(annDebtId || useCustomParams) && annSchedule.length === 0 && annBalance > 0 && (
             <div className="bg-red-50 p-4 rounded-2xl text-sm text-red-700 font-medium">
-              Платёж {fmt(annDebt.minPayment)} не покрывает проценты при ставке {annDebt.rate}%. Увеличьте платёж.
+              Платёж {fmt(annPayment)} не покрывает проценты при ставке {annRate}%. Увеличьте платёж.
+            </div>
+          )}
+          {!annDebtId && !useCustomParams && (
+            <div className="text-center py-8 text-slate-400 text-sm font-medium">
+              Выберите кредит из списка или введите параметры вручную
             </div>
           )}
         </div>
@@ -626,7 +774,200 @@ function CalcTab({ debts }) {
   );
 }
 
-// ─── МОДАЛКА: РЕДАКТИРОВАНИЕ ─────────────────────────────────────────────────
+// ─── КАРТОЧКА ДЕПОЗИТА ────────────────────────────────────────────────────────
+function DepositCard({ deposit, onEdit, onDelete }) {
+  const [expanded, setExpanded] = useState(false);
+  const { income, total, months, effectiveRate } = calcDepositIncome(
+    deposit.amount, deposit.rate, deposit.startDate, deposit.endDate, deposit.capitalization
+  );
+  const daysLeft  = getDaysDiff(deposit.endDate);
+  const daysTotal = Math.ceil((new Date(deposit.endDate) - new Date(deposit.startDate)) / 86400000);
+  const progress  = Math.min(100, Math.max(0, ((daysTotal - Math.max(0, daysLeft)) / daysTotal) * 100));
+  const typeLabel = { deposit:'🏦 Вклад', savings:'💰 Накоп. счёт', bond:'📄 ОФЗ/Облигации' };
+
+  return (
+    <div className="bg-white rounded-[32px] border border-emerald-100 shadow-sm hover:shadow-lg transition-all">
+      <div className="p-5 md:p-6 cursor-pointer" onClick={() => setExpanded(v => !v)}>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-2xl shrink-0">
+              {deposit.type === 'bond' ? '📄' : deposit.type === 'savings' ? '💰' : '🏦'}
+            </div>
+            <div>
+              <div className="font-black text-base text-slate-900 flex items-center gap-2">
+                {deposit.name}
+                {expanded ? <ChevronUp size={16} className="text-slate-300"/> : <ChevronDown size={16} className="text-slate-300"/>}
+              </div>
+              <div className="text-xs text-slate-400 font-medium mt-0.5">
+                {typeLabel[deposit.type] || '🏦 Вклад'} · {deposit.rate}% год.
+                {deposit.capitalization ? ' · капитализация' : ''}
+              </div>
+            </div>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-1">Сумма → доход</div>
+            <div className="font-black text-slate-900">{fmt(deposit.amount)}</div>
+            <div className="text-xs text-emerald-600 font-bold">+{fmt(income)}</div>
+          </div>
+        </div>
+        {/* Прогресс */}
+        <div className="mt-4">
+          <div className="flex justify-between text-[10px] font-bold text-slate-400 mb-1.5">
+            <span>{fmtDate(deposit.startDate, { day:'numeric', month:'short' })}</span>
+            <span className={daysLeft < 0 ? 'text-red-500' : daysLeft < 30 ? 'text-orange-500' : 'text-emerald-600'}>
+              {daysLeft < 0 ? 'Истёк' : `${daysLeft} дн. осталось`}
+            </span>
+            <span>{fmtDate(deposit.endDate, { day:'numeric', month:'short', year:'2-digit' })}</span>
+          </div>
+          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="bg-emerald-500 h-full rounded-full transition-all duration-700" style={{ width:`${progress}%` }}/>
+          </div>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="px-5 md:px-6 pb-6 border-t border-slate-100 pt-4" onClick={e => e.stopPropagation()}>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            {[
+              { lbl:'Доход',          val:fmt(income),                    cls:'text-emerald-600' },
+              { lbl:'Итого в конце',  val:fmt(total),                     cls:'text-slate-900' },
+              { lbl:'Эффект. ставка', val:`${effectiveRate.toFixed(2)}%`, cls:'text-emerald-600' },
+              { lbl:'Срок',           val:`${Math.round(months)} мес.`,   cls:'text-slate-900' },
+            ].map(c=>(
+              <div key={c.lbl} className="bg-slate-50 p-4 rounded-2xl">
+                <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{c.lbl}</span>
+                <span className={`font-black text-base ${c.cls}`}>{c.val}</span>
+              </div>
+            ))}
+          </div>
+          {deposit.notes && (
+            <div className="bg-emerald-50 p-3 rounded-2xl text-xs text-emerald-800 font-medium mb-4">{deposit.notes}</div>
+          )}
+          <div className="flex gap-3">
+            <button onClick={() => onEdit(deposit)}
+              className="text-xs font-black text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2">
+              <Edit3 size={14}/> Изменить
+            </button>
+            <button onClick={() => onDelete(deposit.id)}
+              className="text-xs font-black text-red-400 bg-red-50 hover:bg-red-100 px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2">
+              <X size={14}/> Удалить
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ВКЛАДКА: ПОСЛЕ ДОЛГОВ ───────────────────────────────────────────────────
+function InvestingTab({ totalMinPaymentAll, freeMoney }) {
+  const monthly = totalMinPaymentAll + Number(freeMoney);
+
+  // Ставки по инструментам
+  const instruments = [
+    { id:'deposit', label:'🏦 Вклад/Депозит',    rate:16,  desc:'Без риска. Сейчас ставки высокие — фиксируй надолго.', color:'bg-emerald-500' },
+    { id:'ofz',     label:'📄 ОФЗ',               rate:14,  desc:'Гос. облигации. Надёжнее акций, доходность выше вклада.', color:'bg-teal-500' },
+    { id:'mixed',   label:'⚖️ 50% акции + 50% ОФЗ', rate:18, desc:'Умеренный риск. Хорошо на 5+ лет.', color:'bg-cyan-500' },
+    { id:'index',   label:'📈 Индексный фонд (IMOEX)',rate:22,desc:'Рынок акций РФ. Высокий риск, но лучшая доходность на 10+ лет.', color:'bg-blue-500' },
+  ];
+
+  const years = [1, 2, 5, 10, 20];
+
+  const [selectedInstrument, setSelectedInstrument] = useState('mixed');
+  const [customMonthly, setCustomMonthly] = useState('');
+
+  const effectiveMonthly = customMonthly ? Number(customMonthly) : monthly;
+  const instrument = instruments.find(i => i.id === selectedInstrument);
+  const r = (instrument?.rate || 16) / 100 / 12;
+
+  // Формула FV аннуитета: PMT * ((1+r)^n - 1) / r
+  const calcFV = (pmt, months) => r > 0 ? pmt * (Math.pow(1 + r, months) - 1) / r : pmt * months;
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-8">
+      <div>
+        <h2 className="text-3xl font-black text-slate-900 flex items-center gap-3"><Target className="text-emerald-600" size={30}/> Жизнь после долгов</h2>
+        <p className="text-slate-400 text-sm mt-1 font-medium">Когда закроешь кредиты — эти деньги станут твоим капиталом</p>
+      </div>
+
+      {/* Инструмент */}
+      <div className="bg-white p-7 rounded-[32px] border border-slate-100 shadow-sm">
+        <h3 className="font-black text-lg text-slate-900 mb-4">Куда инвестировать?</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+          {instruments.map(ins => (
+            <button key={ins.id} onClick={() => setSelectedInstrument(ins.id)}
+              className={`text-left p-4 rounded-2xl border-2 transition-all ${selectedInstrument === ins.id ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 hover:border-slate-200'}`}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-black text-sm text-slate-900">{ins.label}</span>
+                <span className={`text-[10px] font-black px-2 py-1 rounded-lg text-white ${ins.color}`}>{ins.rate}% год.</span>
+              </div>
+              <p className="text-[11px] text-slate-400 font-medium leading-relaxed">{ins.desc}</p>
+            </button>
+          ))}
+        </div>
+
+        {/* Кастомный платёж */}
+        <div className="p-4 bg-slate-50 rounded-2xl">
+          <label className="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1.5 block tracking-widest">
+            Ежемесячный взнос ₽ (по умолчанию — ваши платежи по долгам)
+          </label>
+          <input type="number" className="w-full bg-white p-3 rounded-xl outline-none font-bold text-slate-900 border border-slate-200 focus:border-emerald-300 transition-all text-sm"
+            value={customMonthly} onChange={e => setCustomMonthly(e.target.value)}
+            placeholder={`${monthly.toLocaleString('ru-RU')} ₽ (авто)`}/>
+        </div>
+      </div>
+
+      {/* Таблица по срокам */}
+      <div className="bg-white p-7 rounded-[32px] border border-slate-100 shadow-sm">
+        <h3 className="font-black text-lg text-slate-900 mb-2">{instrument?.label} · {instrument?.rate}% годовых</h3>
+        <p className="text-xs text-slate-400 mb-5 font-medium">Взнос {fmt(effectiveMonthly)}/мес · формула сложного процента</p>
+        <div className="grid grid-cols-1 gap-3">
+          {years.map(y => {
+            const fv = calcFV(effectiveMonthly, y * 12);
+            const invested = effectiveMonthly * y * 12;
+            const profit   = fv - invested;
+            const isHighlight = y === 10;
+            return (
+              <div key={y} className={`flex items-center justify-between p-5 rounded-2xl border transition-all ${isHighlight ? 'border-emerald-200 bg-emerald-50' : 'border-slate-100'}`}>
+                <div>
+                  <div className={`font-black text-lg ${isHighlight ? 'text-emerald-700' : 'text-slate-900'}`}>через {y} {y===1?'год':y<5?'года':'лет'}</div>
+                  <div className="text-xs text-slate-400 font-medium mt-0.5">
+                    Вложено {fmt(invested)} · Прибыль {fmt(profit)}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`text-2xl font-black ${isHighlight ? 'text-emerald-600' : 'text-slate-900'}`}>{fmt(fv)}</div>
+                  <div className="text-[10px] text-emerald-500 font-black">×{(fv/invested).toFixed(1)}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Советы */}
+      <div className="bg-white p-7 rounded-[32px] border border-slate-100 shadow-sm">
+        <h3 className="font-black text-slate-900 text-lg mb-5">С чего начать после закрытия долгов</h3>
+        <div className="space-y-3">
+          {[
+            ['🛡️','Подушка безопасности','3–6 месяцев расходов на вкладе с возможностью снятия. Это первое.'],
+            ['🏦','Зафиксируй ставку','Сейчас ставки ЦБ высокие — открой вклад на 1–3 года пока не снизили.'],
+            ['📄','ОФЗ через брокера','Гос. облигации с фиксированным купоном — лучше вклада при падении ставок.'],
+            ['📈','ИИС + индексный фонд','Инвест. вычет 13–15% + рост рынка. Открой ИИС тип Б для безналогового вывода.'],
+            ['🔄','Реинвестируй дивиденды','Не трать купоны и дивиденды — реинвестируй для роста сложного процента.'],
+          ].map(([icon,title,desc])=>(
+            <div key={title} className="flex gap-4 p-4 bg-slate-50 rounded-2xl">
+              <span className="text-2xl shrink-0">{icon}</span>
+              <div><div className="font-bold text-slate-900 text-sm mb-0.5">{title}</div><div className="text-xs text-slate-500 leading-relaxed">{desc}</div></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── МОДАЛКА: РЕДАКТИРОВАНИЕ ДОЛГА ───────────────────────────────────────────
 function EditModal({ debt, onSave, onClose }) {
   const [form, setForm] = useState({
     name:           debt.name||'',
@@ -686,6 +1027,180 @@ function EditModal({ debt, onSave, onClose }) {
   );
 }
 
+// ─── МОДАЛКА: РЕДАКТИРОВАНИЕ ДЕПОЗИТА ────────────────────────────────────────
+function EditDepositModal({ deposit, onSave, onClose }) {
+  const [form, setForm] = useState({
+    name:          deposit.name||'',
+    type:          deposit.type||'deposit',
+    amount:        String(deposit.amount||''),
+    rate:          String(deposit.rate||''),
+    startDate:     deposit.startDate||'',
+    endDate:       deposit.endDate||'',
+    capitalization:deposit.capitalization !== false,
+    payoutPeriod:  deposit.payoutPeriod||'monthly',
+    notes:         deposit.notes||'',
+  });
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const inCls = "w-full bg-slate-50 p-4 rounded-2xl outline-none font-bold text-slate-900 border border-transparent focus:border-emerald-300 focus:ring-2 ring-emerald-100 transition-all";
+  const lCls  = "text-[9px] uppercase font-black text-slate-400 ml-1 mb-1.5 block tracking-widest";
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-t-[40px] sm:rounded-[40px] p-8 w-full sm:max-w-md shadow-2xl space-y-4 my-auto">
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-2xl font-black text-slate-900 flex items-center gap-2"><Edit3 size={22}/> Редактировать вклад</h3>
+          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100"><X size={20}/></button>
+        </div>
+        <div><label className={lCls}>Название</label><input className={inCls} value={form.name} onChange={e=>set('name',e.target.value)}/></div>
+        <div>
+          <label className={lCls}>Тип</label>
+          <select className={inCls} value={form.type} onChange={e=>set('type',e.target.value)}>
+            <option value="deposit">🏦 Вклад / депозит</option>
+            <option value="savings">💰 Накопительный счёт</option>
+            <option value="bond">📄 ОФЗ / Облигации</option>
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className={lCls}>Сумма ₽</label><input type="number" className={inCls} value={form.amount} onChange={e=>set('amount',e.target.value)}/></div>
+          <div><label className={lCls}>Ставка % год.</label><input type="number" step="0.1" className={inCls} value={form.rate} onChange={e=>set('rate',e.target.value)}/></div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className={lCls}>Дата открытия</label><input type="date" className={inCls+' text-slate-500'} value={form.startDate} onChange={e=>set('startDate',e.target.value)}/></div>
+          <div><label className={lCls}>Дата закрытия</label><input type="date" className={inCls+' text-slate-500'} value={form.endDate} onChange={e=>set('endDate',e.target.value)}/></div>
+        </div>
+        <div>
+          <label className={lCls}>Выплата процентов</label>
+          <select className={inCls} value={form.payoutPeriod} onChange={e=>set('payoutPeriod',e.target.value)}>
+            <option value="monthly">Ежемесячно</option>
+            <option value="quarterly">Ежеквартально</option>
+            <option value="end">В конце срока</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl cursor-pointer" onClick={() => set('capitalization', !form.capitalization)}>
+          <div className={`w-12 h-6 rounded-full transition-colors ${form.capitalization ? 'bg-emerald-500' : 'bg-slate-300'} relative shrink-0`}>
+            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${form.capitalization ? 'left-7' : 'left-1'}`}/>
+          </div>
+          <span className="text-sm font-bold text-slate-700">Капитализация процентов</span>
+        </div>
+        <div><label className={lCls}>Заметки</label><textarea rows={2} className={inCls+' resize-none text-sm'} value={form.notes} onChange={e=>set('notes',e.target.value)}/></div>
+        <button onClick={() => onSave({ ...deposit, ...form, amount: Number(form.amount), rate: Number(form.rate) })}
+          className="w-full bg-emerald-600 text-white p-5 rounded-2xl font-black shadow-lg hover:bg-emerald-700 transition-all flex items-center justify-center gap-2">
+          <Save size={18}/> Сохранить
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── ИМПОРТ ВЫПИСКИ ──────────────────────────────────────────────────────────
+function ImportModal({ onImport, onClose }) {
+  const [text, setText] = useState('');
+  const [parsed, setParsed] = useState([]);
+  const [error, setError] = useState('');
+
+  const tryParse = () => {
+    setError('');
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const results = [];
+
+    // Эвристики: ищем паттерны вида "Название; остаток; ставка; платёж; дата"
+    // Поддерживаем CSV с разделителями ; , \t
+    const sep = text.includes(';') ? ';' : text.includes('\t') ? '\t' : ',';
+
+    lines.forEach((line, idx) => {
+      const parts = line.split(sep).map(s => s.trim().replace(/[₽\s]/g, '').replace(',', '.'));
+      if (parts.length < 3) return;
+
+      // Пытаемся найти числа: balance, rate, payment
+      const nums = parts.map(p => parseFloat(p.replace(/[^0-9.]/g, ''))).filter(n => !isNaN(n) && n > 0);
+      const name = parts[0].replace(/[0-9.,;₽]/g, '').trim() || `Кредит ${idx+1}`;
+      if (nums.length < 2) return;
+
+      // Эвристика: balance — наибольшее число, rate — маленькое (< 100), payment — среднее
+      const balance  = Math.max(...nums.filter(n => n > 1000));
+      const rate     = nums.find(n => n > 0 && n < 100) || 20;
+      const payment  = nums.find(n => n !== balance && n !== rate && n > 100) || Math.round(balance * 0.05);
+
+      if (!balance || balance < 100) return;
+
+      results.push({
+        id: Date.now() + idx,
+        name: name || `Кредит ${idx+1}`,
+        balance, rate, minPayment: payment,
+        nextPaymentDate: daysFrom(15),
+        isPaidThisMonth: false,
+        loanType: 'loan',
+        details: { summary: `Импортировано из выписки` },
+      });
+    });
+
+    if (results.length === 0) {
+      setError('Не удалось распознать данные. Формат: Название; Остаток; Ставка%; Платёж');
+      return;
+    }
+    setParsed(results);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-t-[40px] sm:rounded-[40px] p-8 w-full sm:max-w-lg shadow-2xl space-y-5 my-auto">
+        <div className="flex justify-between items-center">
+          <h3 className="text-2xl font-black text-slate-900 flex items-center gap-2"><Upload size={22}/> Импорт выписки</h3>
+          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100"><X size={20}/></button>
+        </div>
+
+        <div className="bg-amber-50 p-4 rounded-2xl text-xs text-amber-800 border border-amber-100">
+          <div className="font-black mb-1">Формат (каждая строка — один кредит):</div>
+          <code className="block font-mono text-amber-700">Сбер Кредит; 150000; 21.5; 8500</code>
+          <code className="block font-mono text-amber-700">ВТБ Кредитка; 80000; 29.9; 4000</code>
+          <div className="mt-2 text-amber-600">Разделители: ; или , или Tab. Можно вставить из Excel/Google Sheets.</div>
+        </div>
+
+        <div>
+          <label className="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1.5 block tracking-widest">Вставьте данные из выписки</label>
+          <textarea rows={6} className="w-full bg-slate-50 p-4 rounded-2xl outline-none font-mono text-sm text-slate-700 border border-transparent focus:border-emerald-300 focus:ring-2 ring-emerald-100 transition-all resize-none"
+            placeholder={"Название; Остаток; Ставка; Платёж\nСбер Кредит; 150000; 21.5; 8500"}
+            value={text} onChange={e => { setText(e.target.value); setParsed([]); setError(''); }}/>
+        </div>
+
+        {error && <div className="bg-red-50 p-3 rounded-2xl text-sm text-red-600 font-medium">{error}</div>}
+
+        {parsed.length > 0 && (
+          <div className="space-y-2">
+            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Распознано {parsed.length} записей:</div>
+            {parsed.map(p => (
+              <div key={p.id} className="flex justify-between items-center p-3 bg-emerald-50 rounded-2xl text-sm">
+                <span className="font-bold text-slate-900">{p.name}</span>
+                <div className="text-right text-xs">
+                  <div className="font-black text-slate-900">{fmt(p.balance)}</div>
+                  <div className="text-slate-400">{p.rate}% · {fmt(p.minPayment)}/мес</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          {parsed.length === 0 ? (
+            <button onClick={tryParse}
+              className="flex-1 bg-slate-900 text-white p-4 rounded-2xl font-black hover:bg-emerald-600 transition-all">
+              Распознать
+            </button>
+          ) : (
+            <button onClick={() => { onImport(parsed); onClose(); }}
+              className="flex-1 bg-emerald-600 text-white p-4 rounded-2xl font-black hover:bg-emerald-700 transition-all flex items-center justify-center gap-2">
+              <CheckCircle2 size={18}/> Добавить {parsed.length} кредита(ов)
+            </button>
+          )}
+          <button onClick={onClose} className="px-5 bg-slate-100 text-slate-600 p-4 rounded-2xl font-black hover:bg-slate-200 transition-all">
+            Отмена
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── ГЛАВНЫЙ КОМПОНЕНТ ───────────────────────────────────────────────────────
 function App() {
   const [activeTab, setActiveTab]             = useState('dashboard');
@@ -694,126 +1209,194 @@ function App() {
   const [isLocalFallback, setIsLocalFallback] = useState(false);
 
   const [debts, setDebts]                   = useState([]);
+  const [deposits, setDeposits]             = useState([]);
   const [freeMoney, setFreeMoney]           = useState(15000);
   const [freeMoneyInput, setFreeMoneyInput] = useState('15000');
   const [strategy, setStrategy]             = useState('avalanche');
   const [debtHistory, setDebtHistory]       = useState([]);
 
-  const [isSidebarOpen, setIsSidebarOpen]           = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen]             = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen]         = useState(false);
-  const [editingDebt, setEditingDebt]               = useState(null);
-  const [expandedId, setExpandedId]                 = useState(null);
+  const [isAddModalOpen, setIsAddModalOpen]           = useState(false);
+  const [isAddDepositOpen, setIsAddDepositOpen]       = useState(false);
+  const [isImportOpen, setIsImportOpen]               = useState(false);
+  const [editingDebt, setEditingDebt]                 = useState(null);
+  const [editingDeposit, setEditingDeposit]           = useState(null);
+  const [expandedId, setExpandedId]                   = useState(null);
+
   const [newDebt, setNewDebt] = useState({ name:'', balance:'', rate:'', minPayment:'', nextPaymentDate:'', detailsSummary:'' });
+  const [newDeposit, setNewDeposit] = useState({
+    name:'', amount:'', rate:'', startDate:'', endDate:'',
+    capitalization:true, payoutPeriod:'monthly', type:'deposit', notes:''
+  });
 
-  // Auth
-  useEffect(()=>{
-    const unsub = onAuthStateChanged(auth, u=>{ if(u) setUser(u); });
-    signInAnonymously(auth).catch(()=>enableLocalMode());
-    return ()=>unsub();
-  },[]);
+  // ── Auth ──
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, u => { if (u) setUser(u); });
+    signInAnonymously(auth).catch(() => enableLocalMode());
+    return () => unsub();
+  }, []);
 
-  // Firestore
-  useEffect(()=>{
-    if (isLocalFallback||!user) return;
-    const ref = doc(db,'artifacts',APP_ID,'public','data','appState','main');
-    const timer = setTimeout(()=>{ if(isLoading) enableLocalMode(); },5000);
-    const unsub = onSnapshot(ref, snap=>{
+  const enableLocalMode = useCallback(() => {
+    setIsLocalFallback(true);
+    setIsLoading(false);
+    try {
+      const sd   = localStorage.getItem('localDebts');
+      const sf   = localStorage.getItem('localFreeMoney');
+      const sdep = localStorage.getItem('localDeposits');
+      setDebts(sd ? JSON.parse(sd) : initialDebts);
+      const f = sf ? Number(sf) : 15000; setFreeMoney(f); setFreeMoneyInput(String(f));
+      setStrategy(localStorage.getItem('localStrategy') || 'avalanche');
+      const sh = localStorage.getItem('localDebtHistory');
+      setDebtHistory(sh ? JSON.parse(sh) : []);
+      setDeposits(sdep ? JSON.parse(sdep) : initialDeposits);
+    } catch { setDebts(initialDebts); setDeposits(initialDeposits); }
+  }, []);
+
+  // ── Firestore — быстрый fallback ──
+  useEffect(() => {
+    if (isLocalFallback || !user) return;
+
+    // Мгновенно показываем из localStorage пока грузится Firebase
+    try {
+      const sd   = localStorage.getItem('localDebts');
+      const sf   = localStorage.getItem('localFreeMoney');
+      const sdep = localStorage.getItem('localDeposits');
+      const sh   = localStorage.getItem('localDebtHistory');
+      if (sd) {
+        setDebts(JSON.parse(sd));
+        const f = sf ? Number(sf) : 15000; setFreeMoney(f); setFreeMoneyInput(String(f));
+        setStrategy(localStorage.getItem('localStrategy') || 'avalanche');
+        setDebtHistory(sh ? JSON.parse(sh) : []);
+        setDeposits(sdep ? JSON.parse(sdep) : initialDeposits);
+        setIsLoading(false);
+      }
+    } catch {}
+
+    const ref   = doc(db, 'artifacts', APP_ID, 'public', 'data', 'appState', 'main');
+    const timer = setTimeout(() => {
+      console.warn('Firebase timeout — работаем офлайн');
+      enableLocalMode();
+    }, 3000);
+
+    const unsub = onSnapshot(ref, snap => {
       clearTimeout(timer);
       if (snap.exists()) {
-        const data=snap.data();
-        setDebts(data.debts||[]);
-        const f=data.freeMoney??15000;
-        setFreeMoney(f); setFreeMoneyInput(String(f));
-        setStrategy(data.strategy||'avalanche');
-        setDebtHistory(data.debtHistory||[]);
+        const data = snap.data();
+        setDebts(data.debts || []);
+        const f = data.freeMoney ?? 15000; setFreeMoney(f); setFreeMoneyInput(String(f));
+        setStrategy(data.strategy || 'avalanche');
+        setDebtHistory(data.debtHistory || []);
+        setDeposits(data.deposits || []);
+        // Синхронизируем localStorage как кеш
+        localStorage.setItem('localDebts',       JSON.stringify(data.debts || []));
+        localStorage.setItem('localFreeMoney',   String(f));
+        localStorage.setItem('localStrategy',    data.strategy || 'avalanche');
+        localStorage.setItem('localDebtHistory', JSON.stringify(data.debtHistory || []));
+        localStorage.setItem('localDeposits',    JSON.stringify(data.deposits || []));
       } else {
-        setDoc(ref,{ debts:initialDebts, freeMoney:15000, strategy:'avalanche', debtHistory:[] });
+        setDoc(ref, { debts: initialDebts, freeMoney: 15000, strategy: 'avalanche', debtHistory: [], deposits: initialDeposits });
       }
       setIsLoading(false);
-    },()=>{ clearTimeout(timer); enableLocalMode(); });
-    return ()=>{ clearTimeout(timer); unsub(); };
-  },[user,isLocalFallback]); // eslint-disable-line
+    }, err => {
+      clearTimeout(timer);
+      console.warn('Firebase error:', err.code);
+      enableLocalMode();
+    });
 
-  const enableLocalMode = useCallback(()=>{
-    setIsLocalFallback(true); setIsLoading(false);
-    try {
-      const sd=localStorage.getItem('localDebts');
-      const sf=localStorage.getItem('localFreeMoney');
-      setDebts(sd?JSON.parse(sd):initialDebts);
-      const f=sf?Number(sf):15000; setFreeMoney(f); setFreeMoneyInput(String(f));
-      setStrategy(localStorage.getItem('localStrategy')||'avalanche');
-      const sh=localStorage.getItem('localDebtHistory');
-      setDebtHistory(sh?JSON.parse(sh):[]);
-    } catch { setDebts(initialDebts); }
-  },[]);
+    return () => { clearTimeout(timer); unsub(); };
+  }, [user, isLocalFallback]); // eslint-disable-line
 
-  const saveData = useCallback((nd,nf,ns,nh)=>{
-    const history=nh||debtHistory;
-    if (isLocalFallback||!user) {
-      localStorage.setItem('localDebts',JSON.stringify(nd));
-      localStorage.setItem('localFreeMoney',String(nf));
-      localStorage.setItem('localStrategy',ns);
-      localStorage.setItem('localDebtHistory',JSON.stringify(history));
+  const saveData = useCallback((nd, nf, ns, nh, ndep) => {
+    const history = nh   !== undefined ? nh   : debtHistory;
+    const deps    = ndep !== undefined ? ndep : deposits;
+    if (isLocalFallback || !user) {
+      localStorage.setItem('localDebts',       JSON.stringify(nd));
+      localStorage.setItem('localFreeMoney',   String(nf));
+      localStorage.setItem('localStrategy',    ns);
+      localStorage.setItem('localDebtHistory', JSON.stringify(history));
+      localStorage.setItem('localDeposits',    JSON.stringify(deps));
     } else {
-      const ref=doc(db,'artifacts',APP_ID,'public','data','appState','main');
-      setDoc(ref,{debts:nd,freeMoney:Number(nf),strategy:ns,debtHistory:history},{merge:true}).catch(console.error);
+      const ref = doc(db, 'artifacts', APP_ID, 'public', 'data', 'appState', 'main');
+      setDoc(ref, { debts: nd, freeMoney: Number(nf), strategy: ns, debtHistory: history, deposits: deps }, { merge: true })
+        .catch(console.error);
     }
-  },[isLocalFallback,user,debtHistory]);
+  }, [isLocalFallback, user, debtHistory, deposits]);
 
-  // Снимок истории
-  useEffect(()=>{
-    if (debts.length===0) return;
-    const label = new Date().toLocaleDateString('ru-RU',{month:'short',year:'2-digit'});
-    const total = debts.reduce((s,d)=>s+Number(d.balance||0),0);
-    setDebtHistory(prev=>{
-      if (prev.length>0&&prev[prev.length-1].label===label) return prev;
-      const next=[...prev,{label,total,ts:Date.now()}].slice(-24);
-      if (isLocalFallback||!user) localStorage.setItem('localDebtHistory',JSON.stringify(next));
-      else { const ref=doc(db,'artifacts',APP_ID,'public','data','appState','main'); setDoc(ref,{debtHistory:next},{merge:true}).catch(console.error); }
+  // ── Снимок истории ──
+  useEffect(() => {
+    if (debts.length === 0) return;
+    const label = new Date().toLocaleDateString('ru-RU', { month:'short', year:'2-digit' });
+    const total = debts.reduce((s,d) => s + Number(d.balance||0), 0);
+    setDebtHistory(prev => {
+      if (prev.length > 0 && prev[prev.length-1].label === label) return prev;
+      const next = [...prev, { label, total, ts: Date.now() }].slice(-24);
+      if (isLocalFallback || !user) localStorage.setItem('localDebtHistory', JSON.stringify(next));
+      else {
+        const ref = doc(db, 'artifacts', APP_ID, 'public', 'data', 'appState', 'main');
+        setDoc(ref, { debtHistory: next }, { merge: true }).catch(console.error);
+      }
       return next;
     });
-  },[debts.length]); // eslint-disable-line
+  }, [debts.length]); // eslint-disable-line
 
-  // Вычисления
-  const totalDebt           = debts.reduce((a,d)=>a+Number(d.balance||0),0);
-  const totalMinPaymentAll  = debts.reduce((a,d)=>a+Number(d.minPayment||0),0);
-  const totalMinPaymentLeft = debts.reduce((a,d)=>a+(d.isPaidThisMonth?0:Number(d.minPayment||0)),0);
-  const paidThisMonthAmount = debts.filter(d=>d.isPaidThisMonth).reduce((a,d)=>a+Number(d.minPayment||0),0);
-  const progressPercent     = totalMinPaymentAll===0?0:Math.round((paidThisMonthAmount/totalMinPaymentAll)*100);
-  const overdueDebts        = debts.filter(d=>!d.isPaidThisMonth&&getDaysDiff(d.nextPaymentDate)<0);
-  const totalOverdue        = overdueDebts.reduce((a,d)=>a+Number(d.minPayment||0),0);
+  // ── Вычисления ──
+  const totalDebt           = debts.reduce((a,d) => a + Number(d.balance||0), 0);
+  const totalMinPaymentAll  = debts.reduce((a,d) => a + Number(d.minPayment||0), 0);
+  const totalMinPaymentLeft = debts.reduce((a,d) => a + (d.isPaidThisMonth ? 0 : Number(d.minPayment||0)), 0);
+  const paidThisMonthAmount = debts.filter(d => d.isPaidThisMonth).reduce((a,d) => a + Number(d.minPayment||0), 0);
+  const progressPercent     = totalMinPaymentAll === 0 ? 0 : Math.round((paidThisMonthAmount / totalMinPaymentAll) * 100);
+  const overdueDebts        = debts.filter(d => !d.isPaidThisMonth && getDaysDiff(d.nextPaymentDate) < 0);
+  const totalOverdue        = overdueDebts.reduce((a,d) => a + Number(d.minPayment||0), 0);
+  const totalDeposits       = deposits.reduce((s,d) => s + d.amount, 0);
+  const totalDepositIncome  = deposits.reduce((s,d) => s + calcDepositIncome(d.amount,d.rate,d.startDate,d.endDate,d.capitalization).income, 0);
 
-  const sortedDebts = useMemo(()=>[...debts].sort((a,b)=>{
-    if (a.isPaidThisMonth!==b.isPaidThisMonth) return a.isPaidThisMonth?1:-1;
-    return getDaysDiff(a.nextPaymentDate)-getDaysDiff(b.nextPaymentDate);
-  }),[debts]);
+  const sortedDebts = useMemo(() => [...debts].sort((a,b) => {
+    if (a.isPaidThisMonth !== b.isPaidThisMonth) return a.isPaidThisMonth ? 1 : -1;
+    return getDaysDiff(a.nextPaymentDate) - getDaysDiff(b.nextPaymentDate);
+  }), [debts]);
 
-  const strategyAllocation = useMemo(()=>{
-    let remain=Number(freeMoney)||0; const alloc={};
-    const targets=[...debts.filter(d=>d.balance>0)];
-    targets.sort((a,b)=>strategy==='avalanche'?(b.rate||0)-(a.rate||0):(a.balance||0)-(b.balance||0));
-    targets.forEach(d=>{ const take=Math.min(remain,d.balance); alloc[d.id]=take; remain-=take; });
+  const strategyAllocation = useMemo(() => {
+    let remain = Number(freeMoney) || 0; const alloc = {};
+    const targets = [...debts.filter(d => d.balance > 0)];
+    targets.sort((a,b) => strategy === 'avalanche' ? (b.rate||0)-(a.rate||0) : (a.balance||0)-(b.balance||0));
+    targets.forEach(d => { const take = Math.min(remain, d.balance); alloc[d.id] = take; remain -= take; });
     return alloc;
-  },[debts,freeMoney,strategy]);
+  }, [debts, freeMoney, strategy]);
 
-  const notifications = useMemo(()=>{
-    const list=[];
-    overdueDebts.forEach(d=>list.push({id:d.id,type:'overdue',title:'Просрочка',text:`"${d.name}" — платёж просрочен!`}));
-    debts.filter(d=>!d.isPaidThisMonth&&getDaysDiff(d.nextPaymentDate)>=0&&getDaysDiff(d.nextPaymentDate)<=3)
-      .forEach(d=>list.push({id:d.id,type:'soon',title:'Скоро платёж',text:`"${d.name}" — через ${getDaysDiff(d.nextPaymentDate)} дн.`}));
+  const notifications = useMemo(() => {
+    const list = [];
+    overdueDebts.forEach(d => list.push({ id:d.id, type:'overdue', title:'Просрочка', text:`"${d.name}" — платёж просрочен!` }));
+    debts.filter(d => !d.isPaidThisMonth && getDaysDiff(d.nextPaymentDate) >= 0 && getDaysDiff(d.nextPaymentDate) <= 3)
+      .forEach(d => list.push({ id:d.id, type:'soon', title:'Скоро платёж', text:`"${d.name}" — через ${getDaysDiff(d.nextPaymentDate)} дн.` }));
     return list;
-  },[debts,overdueDebts]);
+  }, [debts, overdueDebts]);
 
-  // Экшены
-  const handleMarkPaid  = (id)=>{ const next=debts.map(d=>d.id===id?{...d,isPaidThisMonth:true,balance:Math.max(0,Number(d.balance)-Number(d.minPayment||0)),_prevBalance:d.balance}:d); setDebts(next); saveData(next,freeMoney,strategy); };
-  const handleUndoPaid  = (id)=>{ const next=debts.map(d=>d.id===id?{...d,isPaidThisMonth:false,balance:d._prevBalance!==undefined?d._prevBalance:Number(d.balance)+Number(d.minPayment||0)}:d); setDebts(next); saveData(next,freeMoney,strategy); };
-  const handleResetMonth= ()=>{ if(!window.confirm('Сбросить статусы оплат?')) return; const next=debts.map(d=>({...d,isPaidThisMonth:false})); setDebts(next); saveData(next,freeMoney,strategy); };
-  const handleAdd       = (e)=>{ e.preventDefault(); const item={...newDebt,id:Date.now(),isPaidThisMonth:false,loanType:'loan',balance:Number(newDebt.balance),rate:Number(newDebt.rate),minPayment:Number(newDebt.minPayment),details:{summary:newDebt.detailsSummary||''}}; const next=[...debts,item]; setDebts(next); saveData(next,freeMoney,strategy); setIsAddModalOpen(false); setNewDebt({name:'',balance:'',rate:'',minPayment:'',nextPaymentDate:'',detailsSummary:''}); };
-  const handleSaveEdit  = (upd)=>{ const next=debts.map(d=>d.id===upd.id?upd:d); setDebts(next); saveData(next,freeMoney,strategy); setEditingDebt(null); };
-  const handleDelete    = (id)=>{ if(!window.confirm('Удалить?')) return; const next=debts.filter(d=>d.id!==id); setDebts(next); saveData(next,freeMoney,strategy); };
-  const handleFreeMoneyBlur = ()=>{ const v=Number(freeMoneyInput)||0; setFreeMoney(v); saveData(debts,v,strategy); };
-  const handleStrategyChange= (s)=>{ setStrategy(s); saveData(debts,freeMoney,s); };
+  // ── Экшены ──
+  const handleMarkPaid   = (id) => { const next = debts.map(d => d.id===id ? {...d,isPaidThisMonth:true,balance:Math.max(0,Number(d.balance)-Number(d.minPayment||0)),_prevBalance:d.balance} : d); setDebts(next); saveData(next,freeMoney,strategy); };
+  const handleUndoPaid   = (id) => { const next = debts.map(d => d.id===id ? {...d,isPaidThisMonth:false,balance:d._prevBalance!==undefined?d._prevBalance:Number(d.balance)+Number(d.minPayment||0)} : d); setDebts(next); saveData(next,freeMoney,strategy); };
+  const handleResetMonth = () => { if (!window.confirm('Сбросить статусы оплат?')) return; const next = debts.map(d => ({...d,isPaidThisMonth:false})); setDebts(next); saveData(next,freeMoney,strategy); };
+  const handleAdd        = (e) => {
+    e.preventDefault();
+    const item = { ...newDebt, id:Date.now(), isPaidThisMonth:false, loanType:'loan', balance:Number(newDebt.balance), rate:Number(newDebt.rate), minPayment:Number(newDebt.minPayment), details:{ summary:newDebt.detailsSummary||'' } };
+    const next = [...debts, item]; setDebts(next); saveData(next,freeMoney,strategy);
+    setIsAddModalOpen(false); setNewDebt({ name:'', balance:'', rate:'', minPayment:'', nextPaymentDate:'', detailsSummary:'' });
+  };
+  const handleSaveEdit   = (upd) => { const next = debts.map(d => d.id===upd.id ? upd : d); setDebts(next); saveData(next,freeMoney,strategy); setEditingDebt(null); };
+  const handleDelete     = (id)  => { if (!window.confirm('Удалить?')) return; const next = debts.filter(d => d.id!==id); setDebts(next); saveData(next,freeMoney,strategy); };
+  const handleImport     = (imported) => { const next = [...debts, ...imported]; setDebts(next); saveData(next,freeMoney,strategy); };
+  const handleFreeMoneyBlur    = () => { const v = Number(freeMoneyInput)||0; setFreeMoney(v); saveData(debts,v,strategy); };
+  const handleStrategyChange   = (s) => { setStrategy(s); saveData(debts,freeMoney,s); };
+
+  const handleAddDeposit = () => {
+    if (!newDeposit.name || !newDeposit.amount || !newDeposit.rate || !newDeposit.startDate || !newDeposit.endDate) return;
+    const item = { ...newDeposit, id:`d${Date.now()}`, amount:Number(newDeposit.amount), rate:Number(newDeposit.rate) };
+    const next = [...deposits, item]; setDeposits(next); saveData(debts,freeMoney,strategy,undefined,next);
+    setIsAddDepositOpen(false);
+    setNewDeposit({ name:'', amount:'', rate:'', startDate:'', endDate:'', capitalization:true, payoutPeriod:'monthly', type:'deposit', notes:'' });
+  };
+  const handleSaveDeposit = (upd) => { const next = deposits.map(d => d.id===upd.id ? upd : d); setDeposits(next); saveData(debts,freeMoney,strategy,undefined,next); setEditingDeposit(null); };
+  const handleDeleteDeposit = (id) => { if (!window.confirm('Удалить вклад?')) return; const next = deposits.filter(d => d.id!==id); setDeposits(next); saveData(debts,freeMoney,strategy,undefined,next); };
 
   if (isLoading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8FAFC] text-emerald-700">
@@ -821,7 +1404,7 @@ function App() {
         <div className="absolute inset-0 border-4 border-emerald-100 rounded-full"/>
         <div className="absolute inset-0 border-4 border-emerald-600 rounded-full border-t-transparent animate-spin"/>
       </div>
-      <p className="font-bold tracking-tight">Подключение...</p>
+      <p className="font-bold tracking-tight">Загрузка...</p>
     </div>
   );
 
@@ -837,22 +1420,34 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-sans flex overflow-hidden">
-      {isSidebarOpen&&<div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden" onClick={()=>setIsSidebarOpen(false)}/>}
+      {isSidebarOpen && <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)}/>}
 
-      {/* Sidebar */}
+      {/* ── Sidebar ── */}
       <aside className={`fixed lg:static inset-y-0 left-0 w-64 bg-white border-r border-slate-100 z-50 transition-transform duration-300 flex flex-col ${isSidebarOpen?'translate-x-0':'-translate-x-full lg:translate-x-0'}`}>
         <div className="p-6 flex items-center gap-3">
           <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-200"><Wallet size={20}/></div>
           <span className="font-black text-xl tracking-tight text-slate-900">Свобода.</span>
         </div>
         <nav className="flex-1 px-4 space-y-1 mt-2">
-          {nav.map(item=>(
-            <button key={item.id} onClick={()=>{setActiveTab(item.id);setIsSidebarOpen(false);}}
+          {nav.map(item => (
+            <button key={item.id} onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 p-3.5 rounded-2xl font-bold text-sm transition-all ${activeTab===item.id?'bg-emerald-50 text-emerald-700':'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}>
               {item.icon} {item.label}
             </button>
           ))}
         </nav>
+
+        {/* Итого депозиты в сайдбаре */}
+        {deposits.length > 0 && (
+          <div className="px-4 pb-2">
+            <div className="bg-emerald-50 p-4 rounded-[20px] border border-emerald-100">
+              <div className="text-[9px] font-black uppercase tracking-widest text-emerald-500 mb-1 text-center">Вклады</div>
+              <div className="text-center font-black text-emerald-700 text-lg">{fmt(totalDeposits)}</div>
+              <div className="text-center text-[10px] text-emerald-500 font-bold">+{fmt(totalDepositIncome)} дохода</div>
+            </div>
+          </div>
+        )}
+
         <div className="px-4 pb-6">
           <div className="bg-slate-900 p-5 rounded-[24px] text-white">
             <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 text-center">Прогресс месяца</div>
@@ -861,7 +1456,7 @@ function App() {
               <svg className="w-24 h-24 -rotate-90">
                 <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="9" fill="transparent" className="text-slate-800"/>
                 <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="9" fill="transparent"
-                  strokeDasharray="251.3" strokeDashoffset={251.3-(progressPercent/100)*251.3}
+                  strokeDasharray="251.3" strokeDashoffset={251.3 - (progressPercent/100)*251.3}
                   strokeLinecap="round" className="text-emerald-500 transition-all duration-1000"/>
               </svg>
               <div className="absolute inset-0 flex items-center justify-center font-black text-2xl">{progressPercent}%</div>
@@ -870,28 +1465,34 @@ function App() {
         </div>
       </aside>
 
-      {/* Main */}
+      {/* ── Main ── */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-30">
           <div className="flex items-center justify-between px-4 lg:px-8 py-4">
-            <button className="lg:hidden p-2 -ml-2 text-slate-500" onClick={()=>setIsSidebarOpen(true)}><Menu size={22}/></button>
+            <button className="lg:hidden p-2 -ml-2 text-slate-500" onClick={() => setIsSidebarOpen(true)}><Menu size={22}/></button>
             <div className="flex items-center gap-3 ml-auto">
               {isLocalFallback
-                ?<div className="hidden sm:flex items-center gap-2 bg-orange-50 text-orange-600 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest"><WifiOff size={13}/> Локальный</div>
-                :<div className="hidden sm:flex items-center gap-2 text-emerald-600 text-[10px] font-black uppercase tracking-widest"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/> Облако</div>
+                ? <div className="hidden sm:flex items-center gap-2 bg-orange-50 text-orange-600 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest"><WifiOff size={13}/> Локальный</div>
+                : <div className="hidden sm:flex items-center gap-2 text-emerald-600 text-[10px] font-black uppercase tracking-widest"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/> Облако</div>
               }
+              {/* Кнопка импорта */}
+              <button onClick={() => setIsImportOpen(true)}
+                className="hidden sm:flex items-center gap-2 bg-slate-50 text-slate-600 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-colors">
+                <Upload size={13}/> Импорт
+              </button>
               <div className="relative">
-                <button onClick={()=>setIsNotificationsOpen(v=>!v)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full relative transition-colors">
+                <button onClick={() => setIsNotificationsOpen(v => !v)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-full relative transition-colors">
                   <Bell size={22}/>
-                  {notifications.length>0&&<span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"/>}
+                  {notifications.length > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"/>}
                 </button>
-                {isNotificationsOpen&&(
-                  <><div className="fixed inset-0 z-40" onClick={()=>setIsNotificationsOpen(false)}/>
+                {isNotificationsOpen && (
+                  <><div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)}/>
                     <div className="absolute right-0 mt-2 w-72 bg-white rounded-[24px] shadow-2xl border border-slate-100 p-2 z-50">
                       <div className="p-3 font-black text-sm border-b border-slate-50 text-slate-900">Уведомления</div>
                       <div className="max-h-64 overflow-y-auto">
-                        {notifications.length===0?<div className="p-5 text-xs text-slate-400 text-center font-medium">Всё спокойно ✓</div>
-                          :notifications.map((n,i)=>(
+                        {notifications.length === 0
+                          ? <div className="p-5 text-xs text-slate-400 text-center font-medium">Всё спокойно ✓</div>
+                          : notifications.map((n,i) => (
                             <div key={i} className={`p-3 border-b border-slate-50 last:border-0 text-xs ${n.type==='overdue'?'bg-red-50/50':''}`}>
                               <div className={`font-black mb-0.5 ${n.type==='overdue'?'text-red-600':'text-orange-500'}`}>{n.title}</div>
                               <div className="text-slate-600 font-medium">{n.text}</div>
@@ -911,18 +1512,26 @@ function App() {
         <div className="flex-1 overflow-y-auto p-4 lg:p-8">
           <div className="max-w-5xl mx-auto">
 
-            {/* ДАШБОРД */}
-            {activeTab==='dashboard'&&(<>
+            {/* ═══════════════ ДАШБОРД ═══════════════ */}
+            {activeTab === 'dashboard' && (<>
               <div className="flex justify-between items-end mb-8">
                 <div>
                   <h1 className="text-3xl lg:text-4xl font-black tracking-tight text-slate-900">Дашборд</h1>
                   <p className="text-sm text-slate-400 mt-1 font-medium">Закрыть: {debts.length} кредитов · {fmt(totalDebt)}</p>
                 </div>
-                <button onClick={()=>setIsAddModalOpen(true)} className="bg-emerald-600 text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-200 hover:scale-105 transition-transform">
-                  <PlusCircle size={20}/><span className="hidden sm:inline">Добавить</span>
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => setIsImportOpen(true)}
+                    className="sm:hidden bg-slate-100 text-slate-600 px-3 py-3 rounded-2xl font-bold flex items-center gap-2">
+                    <Upload size={18}/>
+                  </button>
+                  <button onClick={() => setIsAddModalOpen(true)}
+                    className="bg-emerald-600 text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-200 hover:scale-105 transition-transform">
+                    <PlusCircle size={20}/><span className="hidden sm:inline">Добавить</span>
+                  </button>
+                </div>
               </div>
 
+              {/* Карточки-метрики */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <div className="bg-emerald-600 p-6 rounded-[32px] text-white shadow-xl shadow-emerald-100">
                   <div className="text-[9px] opacity-70 font-black uppercase tracking-widest mb-2">Общий долг</div>
@@ -936,13 +1545,13 @@ function App() {
                 </div>
                 <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
                   <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-2">Просрочено</div>
-                  <div className={`text-2xl md:text-3xl font-black truncate ${totalOverdue>0?'text-red-500':'text-slate-900'}`}>{fmt(totalOverdue)}</div>
-                  <div className={`text-[10px] mt-2 ${totalOverdue>0?'text-red-400':'text-emerald-500'}`}>{totalOverdue>0?`${overdueDebts.length} просроченных`:'Всё по графику ✓'}</div>
+                  <div className={`text-2xl md:text-3xl font-black truncate ${totalOverdue > 0 ? 'text-red-500' : 'text-slate-900'}`}>{fmt(totalOverdue)}</div>
+                  <div className={`text-[10px] mt-2 ${totalOverdue > 0 ? 'text-red-400' : 'text-emerald-500'}`}>{totalOverdue > 0 ? `${overdueDebts.length} просроченных` : 'Всё по графику ✓'}</div>
                 </div>
                 <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm focus-within:ring-2 ring-emerald-500 transition-all">
                   <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-2">Свободные деньги</div>
                   <div className="relative">
-                    <input type="number" value={freeMoneyInput} onChange={e=>setFreeMoneyInput(e.target.value)} onBlur={handleFreeMoneyBlur}
+                    <input type="number" value={freeMoneyInput} onChange={e => setFreeMoneyInput(e.target.value)} onBlur={handleFreeMoneyBlur}
                       className="text-2xl md:text-3xl font-black text-emerald-600 bg-transparent border-b border-emerald-100 outline-none w-full pb-1"/>
                     <span className="absolute right-0 bottom-2 text-emerald-300 font-black text-lg">₽</span>
                   </div>
@@ -950,8 +1559,8 @@ function App() {
                 </div>
               </div>
 
+              {/* Список + стратегия */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Список */}
                 <div className="lg:col-span-2 space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="font-black text-xl text-slate-900">Список платежей</h3>
@@ -960,36 +1569,36 @@ function App() {
                     </button>
                   </div>
 
-                  {sortedDebts.length===0&&(
+                  {sortedDebts.length === 0 && (
                     <div className="text-center py-16 bg-white rounded-[32px] border border-dashed border-slate-200">
                       <div className="text-4xl mb-4">🎉</div>
                       <p className="font-bold text-slate-500">Долгов нет — вы свободны!</p>
                     </div>
                   )}
 
-                  {sortedDebts.map(d=>{
-                    const days=getDaysDiff(d.nextPaymentDate);
-                    const mInterest=d.rate>0?(Number(d.balance)*Number(d.rate)/100/12):0;
-                    const mPrincipal=Math.max(0,Number(d.minPayment)-mInterest);
-                    const isExpanded=expandedId===d.id;
-                    const extra=strategyAllocation[d.id]||0;
-                    let cardCls='bg-white border-slate-100';
-                    if (d.isPaidThisMonth) cardCls='bg-white border-slate-100 opacity-40 grayscale';
-                    else if (days<0)   cardCls='bg-red-50/30 border-red-200';
-                    else if (days<=3)  cardCls='bg-orange-50/30 border-orange-200';
+                  {sortedDebts.map(d => {
+                    const days = getDaysDiff(d.nextPaymentDate);
+                    const mInterest  = d.rate > 0 ? (Number(d.balance) * Number(d.rate) / 100 / 12) : 0;
+                    const mPrincipal = Math.max(0, Number(d.minPayment) - mInterest);
+                    const isExpanded = expandedId === d.id;
+                    const extra = strategyAllocation[d.id] || 0;
+                    let cardCls = 'bg-white border-slate-100';
+                    if (d.isPaidThisMonth) cardCls = 'bg-white border-slate-100 opacity-40 grayscale';
+                    else if (days < 0)  cardCls = 'bg-red-50/30 border-red-200';
+                    else if (days <= 3) cardCls = 'bg-orange-50/30 border-orange-200';
 
                     return (
                       <div key={d.id} className={`rounded-[32px] border transition-all shadow-sm ${cardCls} ${!d.isPaidThisMonth&&days>=0?'hover:shadow-xl hover:shadow-slate-200/50':''}`}>
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 md:p-6 gap-4 cursor-pointer" onClick={()=>setExpandedId(isExpanded?null:d.id)}>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 md:p-6 gap-4 cursor-pointer" onClick={() => setExpandedId(isExpanded ? null : d.id)}>
                           <div className="flex items-center gap-4">
                             <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 shrink-0"><Wallet size={24}/></div>
                             <div>
                               <h4 className="font-black text-base text-slate-900 flex items-center gap-2">
                                 {d.name}
-                                {isExpanded?<ChevronUp size={16} className="text-slate-300"/>:<ChevronDown size={16} className="text-slate-300"/>}
+                                {isExpanded ? <ChevronUp size={16} className="text-slate-300"/> : <ChevronDown size={16} className="text-slate-300"/>}
                               </h4>
-                              <p className="text-xs text-slate-400 font-medium mt-0.5">{d.rate>0?`${d.rate}% год.`:'Рассрочка 0%'} · Остаток {fmt(d.balance)}</p>
-                              {extra>0&&!d.isPaidThisMonth&&<p className="text-[10px] text-emerald-600 font-black mt-1 flex items-center gap-1"><TrendingDown size={12}/> Досрочно +{fmt(extra)}</p>}
+                              <p className="text-xs text-slate-400 font-medium mt-0.5">{d.rate > 0 ? `${d.rate}% год.` : 'Рассрочка 0%'} · Остаток {fmt(d.balance)}</p>
+                              {extra > 0 && !d.isPaidThisMonth && <p className="text-[10px] text-emerald-600 font-black mt-1 flex items-center gap-1"><TrendingDown size={12}/> Досрочно +{fmt(extra)}</p>}
                             </div>
                           </div>
                           <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
@@ -998,26 +1607,25 @@ function App() {
                               <p className="text-xl font-black text-slate-900">{fmt(d.minPayment)}</p>
                             </div>
                             <DaysBadge days={days} paid={d.isPaidThisMonth}/>
-                            <div className="flex gap-1" onClick={e=>e.stopPropagation()}>
-                              <button onClick={()=>setEditingDebt(d)}
-                                className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 rounded-2xl transition-colors"
-                                title="Редактировать"><Edit3 size={16}/></button>
+                            <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                              <button onClick={() => setEditingDebt(d)}
+                                className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 rounded-2xl transition-colors"><Edit3 size={16}/></button>
                               {d.isPaidThisMonth
-                                ?<button onClick={()=>handleUndoPaid(d.id)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-orange-500 bg-slate-50 hover:bg-orange-50 rounded-2xl transition-colors" title="Отменить"><RotateCcw size={18}/></button>
-                                :<button onClick={()=>handleMarkPaid(d.id)} className="bg-slate-900 text-white px-4 h-10 rounded-2xl text-[10px] font-black flex items-center gap-2 hover:bg-emerald-600 transition-colors shadow-md"><CheckCircle2 size={16}/><span className="hidden sm:inline">ОПЛАТИТЬ</span></button>
+                                ? <button onClick={() => handleUndoPaid(d.id)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-orange-500 bg-slate-50 hover:bg-orange-50 rounded-2xl transition-colors"><RotateCcw size={18}/></button>
+                                : <button onClick={() => handleMarkPaid(d.id)} className="bg-slate-900 text-white px-4 h-10 rounded-2xl text-[10px] font-black flex items-center gap-2 hover:bg-emerald-600 transition-colors shadow-md"><CheckCircle2 size={16}/><span className="hidden sm:inline">ОПЛАТИТЬ</span></button>
                               }
                             </div>
                           </div>
                         </div>
 
-                        {isExpanded&&(
-                          <div className="px-5 md:px-6 pb-6 pt-2 border-t border-slate-100 cursor-default" onClick={e=>e.stopPropagation()}>
+                        {isExpanded && (
+                          <div className="px-5 md:px-6 pb-6 pt-2 border-t border-slate-100 cursor-default" onClick={e => e.stopPropagation()}>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4 mb-5">
                               {[
-                                {lbl:'% в месяц',    val:fmt(mInterest),   cls:'text-red-500'},
-                                {lbl:'Тело долга',   val:fmt(mPrincipal),  cls:'text-emerald-600'},
-                                {lbl:'Дата платежа', val:fmtDate(d.nextPaymentDate,{day:'numeric',month:'short'}), cls:'text-slate-900'},
-                                {lbl:'До платежа',   val:days<0?`−${Math.abs(days)} дн.`:days===0?'Сегодня':`${days} дн.`, cls:days<0?'text-red-500':days<=3?'text-orange-500':'text-slate-900'},
+                                { lbl:'% в месяц',    val:fmt(mInterest),   cls:'text-red-500' },
+                                { lbl:'Тело долга',   val:fmt(mPrincipal),  cls:'text-emerald-600' },
+                                { lbl:'Дата платежа', val:fmtDate(d.nextPaymentDate,{day:'numeric',month:'short'}), cls:'text-slate-900' },
+                                { lbl:'До платежа',   val:days<0?`−${Math.abs(days)} дн.`:days===0?'Сегодня':`${days} дн.`, cls:days<0?'text-red-500':days<=3?'text-orange-500':'text-slate-900' },
                               ].map(c=>(
                                 <div key={c.lbl} className="bg-slate-50 p-4 rounded-2xl">
                                   <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{c.lbl}</span>
@@ -1025,12 +1633,12 @@ function App() {
                                 </div>
                               ))}
                             </div>
-                            {d.rate>0&&d.minPayment>0&&(
+                            {d.rate > 0 && d.minPayment > 0 && (
                               <div className="mb-4">
                                 <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Структура платежа</div>
                                 <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex">
-                                  <div className="bg-red-400 h-full" style={{width:`${Math.min(100,mInterest/d.minPayment*100)}%`}}/>
-                                  <div className="bg-emerald-500 h-full" style={{width:`${Math.max(0,100-mInterest/d.minPayment*100)}%`}}/>
+                                  <div className="bg-red-400 h-full" style={{ width:`${Math.min(100,mInterest/d.minPayment*100)}%` }}/>
+                                  <div className="bg-emerald-500 h-full" style={{ width:`${Math.max(0,100-mInterest/d.minPayment*100)}%` }}/>
                                 </div>
                                 <div className="flex justify-between text-[10px] font-bold mt-1.5">
                                   <span className="text-red-400">Проценты: {fmt(mInterest)}</span>
@@ -1038,20 +1646,21 @@ function App() {
                                 </div>
                               </div>
                             )}
-                            {d.details?.summary&&(
+                            {d.details?.summary && (
                               <div className="bg-amber-50 text-amber-900 p-4 rounded-2xl text-xs font-medium border border-amber-100 mb-4">
                                 <div className="flex items-center gap-2 mb-1.5 text-amber-600 font-black text-[10px] uppercase tracking-widest"><AlertCircle size={14}/> Условия банка</div>
-                                {d.details.gracePeriod&&<div className="mb-1"><span className="font-black">Грейс: </span>{d.details.gracePeriod}</div>}
-                                {d.details.penalty&&<div className="mb-1"><span className="font-black">Штраф: </span><span className="text-red-700">{d.details.penalty}</span></div>}
+                                {d.details.gracePeriod && <div className="mb-1"><span className="font-black">Грейс: </span>{d.details.gracePeriod}</div>}
+                                {d.details.penalty && <div className="mb-1"><span className="font-black">Штраф: </span><span className="text-red-700">{d.details.penalty}</span></div>}
                                 <div className="mt-1">{d.details.summary}</div>
                               </div>
                             )}
                             <div className="flex gap-3 justify-between">
-                              <button onClick={()=>setActiveTab('calculators')}
+                              <button onClick={() => setActiveTab('calculators')}
                                 className="text-xs font-black text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2">
                                 <Calculator size={14}/> Калькулятор
                               </button>
-                              <button onClick={()=>handleDelete(d.id)} className="text-xs font-black text-red-400 bg-red-50 hover:bg-red-100 px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2">
+                              <button onClick={() => handleDelete(d.id)}
+                                className="text-xs font-black text-red-400 bg-red-50 hover:bg-red-100 px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2">
                                 <X size={14}/> Удалить
                               </button>
                             </div>
@@ -1067,21 +1676,21 @@ function App() {
                   <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
                     <h3 className="font-black text-lg text-slate-900 mb-5 flex items-center gap-2"><TrendingDown className="text-emerald-600" size={20}/> Стратегия</h3>
                     <div className="flex bg-slate-50 p-1.5 rounded-2xl mb-4">
-                      {[['avalanche','🔥 Лавина'],['snowball','⛄ Снежный ком']].map(([s,label])=>(
-                        <button key={s} onClick={()=>handleStrategyChange(s)}
+                      {[['avalanche','🔥 Лавина'],['snowball','⛄ Снежный ком']].map(([s,label]) => (
+                        <button key={s} onClick={() => handleStrategyChange(s)}
                           className={`flex-1 py-2.5 rounded-xl text-[10px] font-black transition-all ${strategy===s?'bg-white shadow-sm text-emerald-700':'text-slate-400 hover:text-slate-600'}`}>
                           {label}
                         </button>
                       ))}
                     </div>
                     <p className="text-[10px] text-slate-400 font-medium mb-4 leading-relaxed">
-                      {strategy==='avalanche'?'Гасим самый дорогой % первым. Максимальная экономия.':'Закрываем наименьший долг первым. Психологически легче.'}
+                      {strategy==='avalanche' ? 'Гасим самый дорогой % первым. Максимальная экономия.' : 'Закрываем наименьший долг первым. Психологически легче.'}
                     </p>
                     <div className="space-y-2">
-                      {Object.entries(strategyAllocation).some(([,a])=>a>0)
-                        ?Object.entries(strategyAllocation).map(([id,amt])=>{
-                          if (amt<=0) return null;
-                          const debt=debts.find(d=>d.id==id);
+                      {Object.entries(strategyAllocation).some(([,a]) => a > 0)
+                        ? Object.entries(strategyAllocation).map(([id,amt]) => {
+                          if (amt <= 0) return null;
+                          const debt = debts.find(d => d.id == id);
                           return (
                             <div key={id} className="flex justify-between items-center p-3 bg-slate-50 rounded-2xl">
                               <span className="text-xs font-bold text-slate-700 truncate mr-2">{debt?.name}</span>
@@ -1089,57 +1698,71 @@ function App() {
                             </div>
                           );
                         })
-                        :<p className="text-center text-xs text-slate-400 py-4 font-medium">Введите свободные деньги выше</p>
+                        : <p className="text-center text-xs text-slate-400 py-4 font-medium">Введите свободные деньги выше</p>
                       }
                     </div>
                   </div>
                 </div>
               </div>
+
+              {/* ── СЕКЦИЯ ДЕПОЗИТОВ ── */}
+              <div className="mt-10">
+                <div className="flex justify-between items-center mb-5">
+                  <div>
+                    <h3 className="font-black text-xl text-slate-900 flex items-center gap-2">
+                      <Landmark className="text-emerald-500" size={22}/> Вклады и депозиты
+                    </h3>
+                    {deposits.length > 0 && (
+                      <p className="text-xs text-slate-400 font-medium mt-0.5">
+                        Размещено {fmt(totalDeposits)} · Доход {fmt(totalDepositIncome)}
+                      </p>
+                    )}
+                  </div>
+                  <button onClick={() => setIsAddDepositOpen(true)}
+                    className="bg-emerald-50 text-emerald-700 px-4 py-2.5 rounded-2xl font-bold text-xs flex items-center gap-2 hover:bg-emerald-100 transition-colors border border-emerald-200">
+                    <PlusCircle size={16}/> Добавить вклад
+                  </button>
+                </div>
+
+                {deposits.length === 0 ? (
+                  <div className="text-center py-12 bg-white rounded-[32px] border border-dashed border-emerald-200 cursor-pointer hover:bg-emerald-50/30 transition-colors" onClick={() => setIsAddDepositOpen(true)}>
+                    <div className="text-4xl mb-3">💵</div>
+                    <p className="font-bold text-slate-400 text-sm">Добавьте вклады и депозиты</p>
+                    <p className="text-xs text-slate-300 mt-1">Отслеживайте доходность и сроки</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {deposits.map(dep => (
+                      <DepositCard
+                        key={dep.id}
+                        deposit={dep}
+                        onEdit={d => setEditingDeposit(d)}
+                        onDelete={handleDeleteDeposit}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             </>)}
 
-            {activeTab==='calendar'    && <CalendarTab debts={debts}/>}
-            {activeTab==='analytics'   && <AnalyticsTab debts={debts} totalDebt={totalDebt} totalMinPaymentAll={totalMinPaymentAll} debtHistory={debtHistory}/>}
-            {activeTab==='calculators' && <CalcTab debts={debts}/>}
-
-            {/* После долгов */}
-            {activeTab==='investing'&&(
-              <div className="max-w-3xl mx-auto text-center py-10 md:py-16">
-                <div className="w-24 h-24 bg-emerald-50 text-emerald-600 rounded-[32px] flex items-center justify-center mx-auto mb-8 shadow-inner"><Target size={48}/></div>
-                <h2 className="text-4xl md:text-5xl font-black mb-6 text-slate-900 tracking-tight">Жизнь после долгов</h2>
-                <p className="text-slate-500 mb-10 leading-relaxed text-lg max-w-2xl mx-auto">
-                  Как только кредиты закроются, сумма <span className="font-black text-emerald-600">{fmt(totalMinPaymentAll+Number(freeMoney))}</span> станет вашей ежемесячной инвестицией.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 text-left">
-                  {[{y:5,k:1.816},{y:10,k:3.300},{y:20,k:10.892}].map(({y,k})=>{
-                    const monthly=totalMinPaymentAll+Number(freeMoney);
-                    return (
-                      <div key={y} className="bg-white p-7 rounded-[32px] border border-slate-100 shadow-sm">
-                        <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-2">через {y} лет</div>
-                        <div className="text-2xl font-black text-slate-900 mb-1">{fmt(monthly*k*12)}</div>
-                        <div className="text-[10px] text-slate-400 font-medium">при 12% год.</div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="bg-white p-10 rounded-[48px] border border-slate-100 shadow-2xl shadow-slate-100">
-                  <div className="text-[9px] text-slate-400 font-black uppercase tracking-widest mb-4">Капитал через 10 лет</div>
-                  <div className="text-5xl md:text-7xl font-black text-slate-900 tracking-tighter mb-4">{fmt((totalMinPaymentAll+Number(freeMoney))*120*1.6)}</div>
-                  <div className="inline-block bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl text-xs font-black">* При средней доходности 12% годовых</div>
-                </div>
-              </div>
-            )}
+            {activeTab === 'calendar'    && <CalendarTab debts={debts}/>}
+            {activeTab === 'analytics'   && <AnalyticsTab debts={debts} totalDebt={totalDebt} totalMinPaymentAll={totalMinPaymentAll} debtHistory={debtHistory}/>}
+            {activeTab === 'calculators' && <CalcTab debts={debts}/>}
+            {activeTab === 'investing'   && <InvestingTab totalMinPaymentAll={totalMinPaymentAll} freeMoney={freeMoney}/>}
 
           </div>
         </div>
       </main>
 
-      {/* Модалка: Добавить */}
-      {isAddModalOpen&&(
+      {/* ════ МОДАЛКИ ════ */}
+
+      {/* Добавить долг */}
+      {isAddModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
           <form onSubmit={handleAdd} className="bg-white rounded-t-[40px] sm:rounded-[40px] p-8 w-full sm:max-w-md shadow-2xl space-y-4 my-auto">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-2xl font-black text-slate-900">Новый долг</h3>
-              <button type="button" onClick={()=>setIsAddModalOpen(false)} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100 transition-colors"><X size={20}/></button>
+              <button type="button" onClick={() => setIsAddModalOpen(false)} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100"><X size={20}/></button>
             </div>
             <div><label className="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1.5 block tracking-widest">Название</label>
               <input required placeholder="Кредитка Альфа" className={inCls} value={newDebt.name} onChange={e=>setNewDebt({...newDebt,name:e.target.value})}/></div>
@@ -1160,8 +1783,70 @@ function App() {
         </div>
       )}
 
-      {/* Модалка: Редактировать */}
-      {editingDebt&&<EditModal debt={editingDebt} onSave={handleSaveEdit} onClose={()=>setEditingDebt(null)}/>}
+      {/* Добавить депозит */}
+      {isAddDepositOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-t-[40px] sm:rounded-[40px] p-8 w-full sm:max-w-md shadow-2xl space-y-4 my-auto">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-2xl font-black text-slate-900">Новый вклад / депозит</h3>
+              <button onClick={() => setIsAddDepositOpen(false)} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100"><X size={20}/></button>
+            </div>
+            <div><label className="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1.5 block tracking-widest">Название</label>
+              <input className={inCls} placeholder="Вклад Сбер" value={newDeposit.name} onChange={e=>setNewDeposit({...newDeposit,name:e.target.value})}/></div>
+            <div>
+              <label className="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1.5 block tracking-widest">Тип</label>
+              <select className={inCls} value={newDeposit.type} onChange={e=>setNewDeposit({...newDeposit,type:e.target.value})}>
+                <option value="deposit">🏦 Вклад / депозит</option>
+                <option value="savings">💰 Накопительный счёт</option>
+                <option value="bond">📄 ОФЗ / Облигации</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1.5 block tracking-widest">Сумма ₽</label>
+                <input type="number" className={inCls} placeholder="100000" value={newDeposit.amount} onChange={e=>setNewDeposit({...newDeposit,amount:e.target.value})}/></div>
+              <div><label className="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1.5 block tracking-widest">Ставка % год.</label>
+                <input type="number" step="0.1" className={inCls} placeholder="16.0" value={newDeposit.rate} onChange={e=>setNewDeposit({...newDeposit,rate:e.target.value})}/></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1.5 block tracking-widest">Дата открытия</label>
+                <input type="date" className={inCls+' text-slate-500'} value={newDeposit.startDate} onChange={e=>setNewDeposit({...newDeposit,startDate:e.target.value})}/></div>
+              <div><label className="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1.5 block tracking-widest">Дата закрытия</label>
+                <input type="date" className={inCls+' text-slate-500'} value={newDeposit.endDate} onChange={e=>setNewDeposit({...newDeposit,endDate:e.target.value})}/></div>
+            </div>
+            <div>
+              <label className="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1.5 block tracking-widest">Выплата процентов</label>
+              <select className={inCls} value={newDeposit.payoutPeriod} onChange={e=>setNewDeposit({...newDeposit,payoutPeriod:e.target.value})}>
+                <option value="monthly">Ежемесячно</option>
+                <option value="quarterly">Ежеквартально</option>
+                <option value="end">В конце срока</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl cursor-pointer"
+              onClick={() => setNewDeposit({...newDeposit,capitalization:!newDeposit.capitalization})}>
+              <div className={`w-12 h-6 rounded-full transition-colors ${newDeposit.capitalization?'bg-emerald-500':'bg-slate-300'} relative shrink-0`}>
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${newDeposit.capitalization?'left-7':'left-1'}`}/>
+              </div>
+              <span className="text-sm font-bold text-slate-700">Капитализация процентов</span>
+            </div>
+            <div><label className="text-[9px] uppercase font-black text-slate-400 ml-1 mb-1.5 block tracking-widest">Заметки</label>
+              <textarea rows={2} className={inCls+' resize-none text-sm'} placeholder="Автопролонгация, условия..."
+                value={newDeposit.notes} onChange={e=>setNewDeposit({...newDeposit,notes:e.target.value})}/></div>
+            <button onClick={handleAddDeposit}
+              className="w-full bg-emerald-600 text-white p-5 rounded-2xl font-black shadow-xl hover:bg-emerald-700 transition-all uppercase tracking-widest">
+              Добавить вклад
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Редактировать долг */}
+      {editingDebt    && <EditModal debt={editingDebt} onSave={handleSaveEdit} onClose={() => setEditingDebt(null)}/>}
+
+      {/* Редактировать депозит */}
+      {editingDeposit && <EditDepositModal deposit={editingDeposit} onSave={handleSaveDeposit} onClose={() => setEditingDeposit(null)}/>}
+
+      {/* Импорт */}
+      {isImportOpen   && <ImportModal onImport={handleImport} onClose={() => setIsImportOpen(false)}/>}
     </div>
   );
 }
