@@ -11,7 +11,12 @@ export const generateInsights = async (debts = [], deposits = [], freeMoney = 0)
     }
   }
 
-  const API_KEY = import.meta.env.VITE_GEMINI_KEY || "YOUR_API_KEY";
+  const API_KEY = import.meta.env.VITE_GEMINI_KEY;
+  if (!API_KEY) {
+    console.error("Gemini API Key is missing. Check your environment variables.");
+    return [];
+  }
+
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
   const debtsContext = debts.map(d => 
@@ -49,8 +54,10 @@ text: конкретный совет или факт.
     const data = await response.json();
     let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
     
-    // Убираем markdown блоки ```json ... ``` если они есть
-    const jsonString = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    // Более надежное извлечение JSON из markdown-разметки
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    const jsonString = jsonMatch ? jsonMatch[0] : "[]";
+    
     const insights = JSON.parse(jsonString);
 
     // Сохраняем в кэш

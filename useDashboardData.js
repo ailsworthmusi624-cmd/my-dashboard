@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { db } from '../firebase'; // Предполагая наличие конфига
+import { db } from './firebase'; // Исправлен выход за пределы папки
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 export const useDashboardData = (user) => {

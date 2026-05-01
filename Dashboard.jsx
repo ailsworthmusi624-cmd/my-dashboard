@@ -1,6 +1,6 @@
 import React from 'react';
-import DaysBadge from '../components/DaysBadge';
-import { formatCurrency } from '../utils/finance';
+import DaysBadge from './DaysBadge';
+import { formatCurrency } from './finance';
 
 const Dashboard = ({ debts }) => {
   return (

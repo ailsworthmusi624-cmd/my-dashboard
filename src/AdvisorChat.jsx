@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, X, Loader2, MessageSquare, Sparkles } from 'lucide-react';
+import { Send, X, Loader2, Sparkles } from 'lucide-react';
 
 const AdvisorChat = ({ debts = [], freeMoney = 0, deposits = [], onClose }) => {
   const [messages, setMessages] = useState([
@@ -137,7 +137,7 @@ const AdvisorChat = ({ debts = [], freeMoney = 0, deposits = [], onClose }) => {
               <Send size={20} />
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

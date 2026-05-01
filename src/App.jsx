@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import Dashboard from './tabs/Dashboard';
-import { useDashboardData } from './hooks/useDashboardData';
+import Dashboard from '../Dashboard'; // Исправлен путь
+import { useDashboardData } from '../useDashboardData'; // Исправлен путь
 import { Download, Sparkles } from 'lucide-react';
-import AdvisorChat from './shared/ai/AdvisorChat';
+import AdvisorChat from './AdvisorChat'; // Исправлен путь
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const { data: debts, loading } = useDashboardData();
+  const { data: debts, loading } = useDashboardData(null); // Добавлен аргумент user
   const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isAiOpen, setIsAiOpen] = useState(false);
+  const freeMoney = 15000; // Или получить из данных
+  const deposits = []; // Или получить из данных
 
   useEffect(() => {
     const handler = (e) => {

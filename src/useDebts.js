@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { db } from '../../../../firebase';
+import { db } from './firebase'; // Проверь реальный путь к firebase.js
 import { doc, updateDoc } from 'firebase/firestore';
 
 export const useDebts = (user, initialDebts = []) => {
