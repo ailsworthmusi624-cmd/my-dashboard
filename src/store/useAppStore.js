@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import { daysFrom } from '../shared/utils/format';
+import { auth, db, APP_ID } from '../firebase';
+import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 const INITIAL_DEBTS = [
   { id:1, name:'Сбер (Кредитка)', balance:85000, rate:25.9,
@@ -80,6 +83,7 @@ const useAppStore = create((set, get) => ({
   isLoading: true,
   isLocalFallback: false,
   user: null,
+  _isHydrating: false,
 
   // ── Действия: долги ──
   setDebts: (debts) => set({ debts }),
@@ -158,5 +162,107 @@ const useAppStore = create((set, get) => ({
   setIsLoading: (isLoading) => set({ isLoading }),
   setIsLocalFallback: (isLocalFallback) => set({ isLocalFallback }),
 }));
+
+let isInitialized = false;
+
+export const initFirebaseSync = () => {
+  if (isInitialized) return;
+  isInitialized = true;
+
+  // 1. Попытка загрузить из LocalStorage для быстрого старта
+  const localCache = localStorage.getItem('freedom_app_cache');
+  if (localCache) {
+    try {
+      const parsed = JSON.parse(localCache);
+      useAppStore.setState({ _isHydrating: true });
+      useAppStore.setState({ ...parsed, isLoading: true });
+      useAppStore.setState({ _isHydrating: false });
+    } catch (e) {
+      console.error('Cache parse error', e);
+    }
+  }
+
+  // 2. Авторизация Firebase
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      useAppStore.setState({ user });
+
+      // 3. Подписка на данные из Firestore
+      const ref = doc(db, 'artifacts', APP_ID, 'public', 'data', 'appState', 'main');
+      onSnapshot(ref, snap => {
+        if (snap.exists()) {
+          const data = snap.data();
+          useAppStore.setState({ _isHydrating: true });
+          useAppStore.setState({
+            debts: data.debts || INITIAL_DEBTS,
+            deposits: data.deposits || INITIAL_DEPOSITS,
+            freeMoney: data.freeMoney ?? 15000,
+            strategy: data.strategy || 'avalanche',
+            debtHistory: data.debtHistory || [],
+            masters: data.masters || INITIAL_MASTERS,
+            journal: data.journal || [],
+            expenses: data.expenses || [],
+            advances: data.advances || [],
+            salon: data.salon || { globalPlans: { revenue: 500000, clients: 150, avgCheck: 3300 } },
+            isLoading: false,
+            isLocalFallback: false,
+          });
+          useAppStore.setState({ _isHydrating: false });
+        } else {
+          useAppStore.setState({ isLoading: false });
+        }
+      }, err => {
+        console.error('Firestore read error:', err);
+        useAppStore.setState({ isLocalFallback: true, isLoading: false });
+      });
+    }
+  });
+
+  signInAnonymously(auth).catch((err) => {
+    console.error('Auth error:', err);
+    useAppStore.setState({ isLocalFallback: true, isLoading: false });
+  });
+
+  // 4. Подписка на изменения стора для автосохранения
+  useAppStore.subscribe((state, prevState) => {
+    if (state._isHydrating || state.isLoading) return;
+
+    const changed =
+      state.debts !== prevState.debts ||
+      state.deposits !== prevState.deposits ||
+      state.freeMoney !== prevState.freeMoney ||
+      state.strategy !== prevState.strategy ||
+      state.debtHistory !== prevState.debtHistory ||
+      state.masters !== prevState.masters ||
+      state.journal !== prevState.journal ||
+      state.expenses !== prevState.expenses ||
+      state.advances !== prevState.advances ||
+      state.salon !== prevState.salon;
+
+    if (changed) {
+      const payload = {
+        debts: state.debts,
+        deposits: state.deposits,
+        freeMoney: state.freeMoney,
+        strategy: state.strategy,
+        debtHistory: state.debtHistory,
+        masters: state.masters,
+        journal: state.journal,
+        expenses: state.expenses,
+        advances: state.advances,
+        salon: state.salon
+      };
+
+      // Сохраняем в кэш
+      localStorage.setItem('freedom_app_cache', JSON.stringify(payload));
+
+      // Сохраняем в облако
+      if (state.user && !state.isLocalFallback) {
+        const ref = doc(db, 'artifacts', APP_ID, 'public', 'data', 'appState', 'main');
+        setDoc(ref, payload, { merge: true }).catch(console.error);
+      }
+    }
+  });
+};
 
 export default useAppStore;

@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { AlertCircle, Target, Users, Banknote, Calendar, Wallet } from 'lucide-react';
+import { AlertCircle, Target, Users, Banknote, Calendar, Wallet, X, Sparkles, Loader2, Lightbulb } from 'lucide-react';
 import useAppStore from '../../../store/useAppStore';
 import { fmt } from '../../../shared/utils/format';
+import { generateSalonInsights } from '../../../shared/utils/ai';
 
 export default function SalonDashboard() {
   const journal = useAppStore(s => s.journal ?? []);
@@ -11,8 +12,14 @@ export default function SalonDashboard() {
   const globalPlans = useAppStore(s => s.salon?.globalPlans ?? {});
 
   const today = new Date();
-  const [startDate, setStartDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(() => new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0]);
+  const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const todayStr = `${currentMonthStr}-${String(today.getDate()).padStart(2, '0')}`;
+  const [startDate, setStartDate] = useState(`${currentMonthStr}-01`);
+  const [endDate, setEndDate] = useState(todayStr);
+
+  const [isRevenueTrendOpen, setIsRevenueTrendOpen] = useState(false);
+  const [insights, setInsights] = useState([]);
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
   const metrics = useMemo(() => {
     const fJournal = journal.filter(e => e.date >= startDate && e.date <= endDate);
@@ -44,6 +51,15 @@ export default function SalonDashboard() {
           entryPayroll += amt * (rate / 100);
         });
       }
+
+      if (entry.goods) {
+        entry.goods.forEach(g => {
+          const amt = Number(g.amount) || 0;
+          const rate = Number(g.rate) || 0;
+          entryRevenue += amt;
+          entryPayroll += amt * (rate / 100);
+        });
+      }
       
       revenue += entryRevenue;
       payroll += entryPayroll;
@@ -65,7 +81,7 @@ export default function SalonDashboard() {
     const breakEven = margin > 0 ? opEx / (margin / 100) : 0;
     const safetyMargin = revenue > 0 ? ((revenue - breakEven) / revenue) * 100 : 0;
     
-    const planTotal = globalPlans.revenue || 0;
+    const planTotal = masters.reduce((acc, m) => acc + (Number(m.plan) || 0), 0);
     const planProgress = planTotal > 0 ? (revenue / planTotal) * 100 : 0;
     const clientsCount = fJournal.length;
     const avgCheck = clientsCount > 0 ? revenue / clientsCount : 0;
@@ -96,6 +112,27 @@ export default function SalonDashboard() {
     };
   }, [journal, expenses, masters, advances, globalPlans, startDate, endDate]);
 
+  // Расчет тенденции выручки по месяцам
+  const revenueTrends = useMemo(() => {
+    const grouped = {};
+    journal.forEach(e => {
+      const m = e.date.substring(0, 7);
+      if (!grouped[m]) grouped[m] = { revenue: 0 };
+      const srvRev = (e.services || []).reduce((s, x) => s + (Number(x.amount) || 0), 0);
+      const goodsRev = (e.goods || []).reduce((s, x) => s + (Number(x.amount) || 0), 0);
+      grouped[m].revenue += (srvRev + goodsRev);
+    });
+    // Сортируем от новых к старым
+    return Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0])).map(([month, data]) => ({ month, ...data }));
+  }, [journal]);
+
+  const handleAskAI = async () => {
+    setIsAiLoading(true);
+    const res = await generateSalonInsights(metrics);
+    setInsights(res);
+    setIsAiLoading(false);
+  };
+
   const alerts = [];
   if (metrics.revenue > 0 && metrics.revenue < metrics.breakEven) {
     alerts.push({ type: 'danger', text: `Выручка ниже точки безубыточности на ${fmt(metrics.breakEven - metrics.revenue)} — срочно анализировать` });
@@ -103,8 +140,8 @@ export default function SalonDashboard() {
 
   const safeWithdrawal = Math.max(0, metrics.netProfit - metrics.taxReserveTarget - metrics.insuranceFund);
 
-  const KpiBox = ({ label1, value1, sub1, label2, value2, highlight }) => (
-    <div className="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 flex flex-col justify-between h-full hover:shadow-md transition-shadow">
+  const KpiBox = ({ label1, value1, sub1, label2, value2, highlight, onClick }) => (
+    <div onClick={onClick} className={`bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 flex flex-col justify-between h-full hover:shadow-md transition-all ${onClick ? 'cursor-pointer hover:border-indigo-300 hover:ring-2 ring-indigo-50' : ''}`}>
       <div className="mb-4">
         <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{label1}</div>
         <div className={`font-mono text-2xl md:text-3xl font-black ${highlight ? 'text-indigo-600' : 'text-slate-900'}`}>{value1}</div>
@@ -138,6 +175,43 @@ export default function SalonDashboard() {
         </div>
       </div>
 
+      {/* ─── AI СОВЕТНИК ─── */}
+      <div className="bg-gradient-to-br from-indigo-900 to-purple-900 rounded-[32px] p-6 md:p-8 text-white shadow-xl shadow-indigo-200">
+        <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white/10 rounded-[16px] flex items-center justify-center backdrop-blur-md">
+              <Sparkles className="text-purple-300" size={24}/>
+            </div>
+            <div>
+              <h3 className="font-black text-xl">AI-Аналитик</h3>
+              <p className="text-xs text-purple-200 font-medium">Gemini 1.5 Flash</p>
+            </div>
+          </div>
+          {insights.length === 0 && !isAiLoading && (
+            <button onClick={handleAskAI} className="bg-white text-indigo-900 px-5 py-3 rounded-2xl font-black text-sm hover:scale-105 transition-transform flex items-center justify-center gap-2">
+              Анализировать показатели
+            </button>
+          )}
+          {isAiLoading && (
+            <div className="flex items-center gap-2 text-purple-200 text-sm font-bold bg-white/10 px-5 py-3 rounded-2xl">
+              <Loader2 className="animate-spin" size={16}/> Анализирую...
+            </div>
+          )}
+        </div>
+
+        {insights.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in">
+            {insights.map((ins, i) => (
+              <div key={i} className="bg-white/10 border border-white/20 p-5 rounded-[24px] backdrop-blur-md">
+                <div className={`text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1 ${ins.type === 'success' ? 'text-emerald-400' : ins.type === 'warning' ? 'text-amber-400' : 'text-blue-300'}`}><Lightbulb size={12}/> {ins.type === 'success' ? 'Достижение' : ins.type === 'warning' ? 'Риск' : 'Совет'}</div>
+                <div className="font-black text-base mb-2">{ins.title}</div>
+                <div className="text-xs text-purple-100 leading-relaxed font-medium">{ins.text}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* ─── АЛЕРТЫ ─── */}
       {alerts.length > 0 && (
         <div className="space-y-2">
@@ -167,7 +241,7 @@ export default function SalonDashboard() {
 
       {/* ─── СЕТКА KPI ─── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-        <KpiBox label1="Выручка (факт)" value1={fmt(metrics.revenue)} sub1={`Прогноз: ${fmt(metrics.runRate)}`} label2={`План: ${fmt(metrics.planTotal)}`} value2={`${metrics.planProgress.toFixed(1)}%`} highlight />
+        <KpiBox label1="Выручка (факт)" value1={fmt(metrics.revenue)} sub1={`Прогноз: ${fmt(metrics.runRate)}`} label2={`План: ${fmt(metrics.planTotal)}`} value2={`${metrics.planProgress.toFixed(1)}%`} highlight onClick={() => setIsRevenueTrendOpen(true)} />
         <KpiBox label1="Чистая прибыль" value1={fmt(metrics.netProfit)} label2="Маржинальность" value2={`${metrics.margin.toFixed(1)}%`} />
         <KpiBox label1="Средний чек" value1={fmt(metrics.avgCheck)} label2="Клиентов за месяц" value2={`${metrics.clientsCount} чел.`} />
         <KpiBox label1="Точка безубыт." value1={fmt(metrics.breakEven)} label2="Запас прочности" value2={`${metrics.safetyMargin.toFixed(1)}%`} />
@@ -214,6 +288,25 @@ export default function SalonDashboard() {
         </div>
       </div>
 
+      {/* ─── МОДАЛКА ТЕНДЕНЦИИ ВЫРУЧКИ ─── */}
+      {isRevenueTrendOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[32px] p-6 md:p-8 w-full max-w-lg shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-slate-900">Тенденция выручки</h3>
+              <button onClick={() => setIsRevenueTrendOpen(false)} className="w-8 h-8 flex items-center justify-center bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100"><X size={18}/></button>
+            </div>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+              {revenueTrends.map(t => (
+                 <div key={t.month} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                   <span className="font-bold text-slate-700">{t.month}</span>
+                   <span className="font-black text-indigo-600">{fmt(t.revenue)}</span>
+                 </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

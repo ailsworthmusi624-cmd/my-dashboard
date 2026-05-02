@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, PieChart, Calendar as CalendarIcon, 
-  Calculator, Target, Users, Plus, Wallet, Scissors, Receipt, PieChart as PieChartIcon
+  Calculator, Target, Users, Plus, Wallet, Scissors, Receipt, PieChart as PieChartIcon,
+  Cloud, CloudOff, Loader2
 } from 'lucide-react';
-import  useAppStore  from './store/useAppStore';
+import useAppStore, { initFirebaseSync } from './store/useAppStore';
 import Calculators from './workspaces/personal/tabs/Calculators';
 import Investing from './workspaces/personal/tabs/Investing';
 import Analytics from './workspaces/personal/tabs/Analytics';
@@ -21,6 +22,13 @@ function App() {
   // Подключаем стор безопасно (с fallback на пустой массив)
   const debts = useAppStore(s => s.debts ?? []);
   const appointments = useAppStore(s => s.appointments ?? []);
+
+  useEffect(() => {
+    initFirebaseSync();
+  }, []);
+
+  const isLoading = useAppStore(s => s.isLoading);
+  const isLocalFallback = useAppStore(s => s.isLocalFallback);
 
   // Сброс вкладки при смене рабочего пространства
   useEffect(() => {
@@ -134,10 +142,15 @@ function App() {
               </div>
             )}
             
-            {/* Проверка подключения стора */}
-            <div className="mt-8 p-5 bg-slate-200/50 rounded-3xl text-xs text-slate-500 font-mono text-center">
-              <span className="font-bold block mb-1 text-slate-600">Zustand Store Connection Test:</span>
-              Загружено долгов: {debts.length} | Записей в салон: {appointments.length}
+            {/* Статус синхронизации */}
+            <div className="mt-8 p-5 bg-white border border-slate-100 rounded-3xl text-xs text-slate-500 font-bold text-center flex items-center justify-center gap-2 shadow-sm">
+              {isLoading ? (
+                <><Loader2 size={16} className="animate-spin text-indigo-500" /> Синхронизация с облаком...</>
+              ) : isLocalFallback ? (
+                <><CloudOff size={16} className="text-orange-500" /> Офлайн режим (Данные сохранены локально)</>
+              ) : (
+                <><Cloud size={16} className="text-emerald-500" /> Подключено к Firebase (Автосохранение активно)</>
+              )}
             </div>
           </div>
         </main>

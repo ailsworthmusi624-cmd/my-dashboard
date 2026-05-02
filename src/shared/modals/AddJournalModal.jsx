@@ -16,6 +16,7 @@ export default function AddJournalModal({ isOpen, onClose }) {
   const [services, setServices] = useState([
     { id: Date.now(), title: SERVICES_OPTIONS[0], amount: '', rate: '' }
   ]);
+  const [goods, setGoods] = useState([]);
 
   // Установка мастера по умолчанию при открытии
   useEffect(() => {
@@ -52,12 +53,18 @@ export default function AddJournalModal({ isOpen, onClose }) {
     setServices(services.map(s => s.id === id ? { ...s, [field]: value } : s));
   };
 
-  const totalAmount = services.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+  const addGood = () => {
+    setGoods([...goods, { id: Date.now(), title: '', amount: '', cogs: '', rate: '10' }]);
+  };
+  const removeGood = (id) => setGoods(goods.filter(g => g.id !== id));
+  const updateGood = (id, field, value) => setGoods(goods.map(g => g.id === id ? { ...g, [field]: value } : g));
+
+  const totalAmount = services.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0) + goods.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
   const handleSave = () => {
     // Валидация
-    if (!masterName || services.some(s => !s.amount)) {
-      alert('Заполните суммы для всех услуг');
+    if (!masterName || services.some(s => !s.amount) || goods.some(g => !g.title || !g.amount || !g.cogs)) {
+      alert('Заполните суммы для услуг и данные для товаров (название, цена, себестоимость)');
       return;
     }
 
@@ -66,14 +73,15 @@ export default function AddJournalModal({ isOpen, onClose }) {
       date,
       masterName,
       paymentMethod,
-      // Конвертируем строки в числа для суммы и ставки
-      services: services.map(s => ({ ...s, amount: Number(s.amount), rate: Number(s.rate) }))
+      services: services.map(s => ({ ...s, amount: Number(s.amount), rate: Number(s.rate) })),
+      goods: goods.map(g => ({ ...g, title: g.title, amount: Number(g.amount), cogs: Number(g.cogs), rate: Number(g.rate) }))
     };
 
     addJournalEntry(newEntry);
     onClose();
     
     setServices([{ id: Date.now(), title: SERVICES_OPTIONS[0], amount: '', rate: masters.find(m => m.name === masterName)?.rate1 || '' }]);
+    setGoods([]);
   };
 
   return (
@@ -169,6 +177,42 @@ export default function AddJournalModal({ isOpen, onClose }) {
               <Plus size={18} /> Добавить услугу
             </button>
           </div>
+        </div>
+
+        {/* Блок добавления товаров */}
+        <div className="px-6 pb-2 mt-2 border-t border-slate-100 pt-6">
+          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Проданные товары</label>
+          
+          {goods.length > 0 && (
+            <div className="space-y-3 mb-3">
+              {goods.map((g) => (
+                <div key={g.id} className="flex gap-2 items-start relative bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                  <div className="flex-1 space-y-2">
+                    <input type="text" placeholder="Название товара (Шампунь и т.д.)" value={g.title} onChange={e => updateGood(g.id, 'title', e.target.value)} className="w-full bg-white border border-slate-100 text-sm font-bold rounded-xl px-3 py-2.5 focus:outline-none focus:border-purple-300" />
+                    <div className="flex gap-2">
+                      <div className="w-1/3 relative">
+                        <input type="number" placeholder="Себест." value={g.cogs} onChange={e => updateGood(g.id, 'cogs', e.target.value)} className="w-full bg-white border border-slate-100 text-sm font-bold rounded-xl px-3 py-2.5 focus:outline-none focus:border-purple-300" />
+                      </div>
+                      <div className="w-1/3 relative">
+                        <input type="number" placeholder="Цена" value={g.amount} onChange={e => updateGood(g.id, 'amount', e.target.value)} className="w-full bg-white border border-slate-100 text-sm font-bold rounded-xl px-3 py-2.5 focus:outline-none focus:border-purple-300" />
+                      </div>
+                      <div className="relative w-1/3">
+                        <input type="number" placeholder="% мастеру" value={g.rate} onChange={e => updateGood(g.id, 'rate', e.target.value)} className="w-full bg-white border border-slate-100 text-sm font-bold rounded-xl px-3 py-2.5 pr-6 focus:outline-none focus:border-purple-300" />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] font-bold">%</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button onClick={() => removeGood(g.id)} className="w-10 h-10 mt-1 shrink-0 flex items-center justify-center text-slate-300 hover:text-red-500 bg-white rounded-xl shadow-sm transition-colors">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button onClick={addGood} className="w-full py-3.5 border-2 border-dashed border-slate-200 text-slate-400 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 hover:border-purple-300 hover:text-purple-600 transition-colors">
+            <Plus size={18} /> Добавить товар
+          </button>
         </div>
 
         <div className="px-6 pb-2 mt-4">

@@ -34,7 +34,7 @@ export default function Journal() {
         ) : (
           <div className="space-y-4">
             {journal.map((entry, idx) => {
-              const entryTotal = entry.amount || (entry.services ? entry.services.reduce((s, svc) => s + (svc.amount || 0), 0) : 0);
+              const entryTotal = (entry.services ? entry.services.reduce((s, svc) => s + (svc.amount || 0), 0) : 0) + (entry.goods ? entry.goods.reduce((s, g) => s + (g.amount || 0), 0) : 0);
               return (
                 <div key={entry.id || idx} className="p-5 rounded-[24px] border border-white/40 bg-white/60 backdrop-blur-xl shadow-sm hover:shadow-md transition-all">
                   <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-4">
@@ -55,6 +55,13 @@ export default function Journal() {
                   
                   {entry.services && entry.services.length > 0 && (
                     <div className="mt-4 pt-4 border-t border-slate-200/50"><div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Оказанные услуги</div><div className="space-y-2">{entry.services.map((svc, i) => (<div key={i} className="flex justify-between items-center text-sm font-bold text-slate-700 bg-white/50 p-2.5 rounded-xl"><span>{svc.title} <span className="text-xs text-slate-400 font-medium ml-2">({svc.rate}%)</span></span><span>{fmt(svc.amount)}</span></div>))}</div></div>
+                  )}
+                  
+                  {entry.goods && entry.goods.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-slate-200/50">
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Проданные товары</div>
+                      <div className="space-y-2">{entry.goods.map((g, i) => (<div key={i} className="flex justify-between items-center text-sm font-bold text-slate-700 bg-white/50 p-2.5 rounded-xl"><span>📦 {g.title} <span className="text-xs text-slate-400 font-medium ml-2">({g.rate}%)</span></span><span>{fmt(g.amount)}</span></div>))}</div>
+                    </div>
                   )}
                 </div>
               );

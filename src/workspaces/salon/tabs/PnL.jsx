@@ -6,38 +6,50 @@ import { fmt } from '../../../shared/utils/format';
 export default function PnL() {
   const journal = useAppStore(s => s.journal ?? []);
   const expenses = useAppStore(s => s.expenses ?? []);
-  const masters = useAppStore(s => s.masters ?? []);
 
-  const today = new Date();
-  const [startDate, setStartDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(() => new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0]);
+  const [monthStr, setMonthStr] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   const metrics = useMemo(() => {
+    const startDate = `${monthStr}-01`;
+    const endDate = new Date(monthStr.split('-')[0], monthStr.split('-')[1], 0).toISOString().split('T')[0];
+
     const fJournal = journal.filter(e => e.date >= startDate && e.date <= endDate);
     const fExpenses = expenses.filter(e => e.date >= startDate && e.date <= endDate);
 
-    let revenue = 0;
+    let serviceRevenue = 0;
+    let goodsRevenue = 0;
+    let cogs = 0;
     let payroll = 0;
-    let bankCommission = 0;
 
     fJournal.forEach(entry => {
-      const method = entry.paymentMethod || 'cash';
-      let entryRevenue = 0;
-
       if (entry.services) {
         entry.services.forEach(svc => {
           const amt = Number(svc.amount) || 0;
           const rate = Number(svc.rate) || 0;
-          entryRevenue += amt;
+          serviceRevenue += amt;
           payroll += amt * (rate / 100);
         });
       }
-      revenue += entryRevenue;
-      if (method === 'card') bankCommission += entryRevenue * 0.029;
-      else if (method === 'sbp') bankCommission += entryRevenue * 0.007;
+      
+      if (entry.goods) {
+        entry.goods.forEach(g => {
+          const amt = Number(g.amount) || 0;
+          const cost = Number(g.cogs) || 0;
+          const rate = Number(g.rate) || 0;
+          goodsRevenue += amt;
+          cogs += cost;
+          payroll += amt * (rate / 100);
+        });
+      }
     });
 
-    const netRevenue = revenue - bankCommission;
+    const totalRevenue = serviceRevenue + goodsRevenue;
+    const bankCommission = totalRevenue * 0.025;
+    const netRevenue = totalRevenue - bankCommission;
+    const grossProfit = netRevenue - cogs;
 
     let rent = 0;
     let utilities = 0;
@@ -55,32 +67,21 @@ export default function PnL() {
       else if (cat === 'ЖКУ') utilities += amt;
       else if (catLower.includes('материал')) materials += amt;
       else if (cat === 'Реклама') marketing += amt;
-      else if (cat === 'зп управляющего') managerSalary += amt;
+      else if (catLower.includes('зп управляющего')) managerSalary += amt;
       else other += amt;
     });
 
     const totalExpenses = payroll + rent + utilities + materials + marketing + managerSalary + other;
-    const usnTax = revenue * 0.06;
-    const netProfit = netRevenue - totalExpenses - usnTax;
-    const margin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+    const usnTax = totalRevenue * 0.06;
+    const netProfit = grossProfit - totalExpenses - usnTax;
+    const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
     return {
-      revenue,
-      bankCommission,
-      netRevenue,
-      payroll,
-      rent,
-      utilities,
-      materials,
-      marketing,
-      managerSalary,
-      other,
-      totalExpenses,
-      usnTax,
-      netProfit,
-      margin
+      serviceRevenue, goodsRevenue, cogs, totalRevenue, grossProfit,
+      bankCommission, netRevenue, payroll, rent, utilities, materials, 
+      marketing, managerSalary, other, totalExpenses, usnTax, netProfit, margin
     };
-  }, [journal, expenses, masters, startDate, endDate]);
+  }, [journal, expenses, monthStr]);
 
   const TableRow = ({ label, value, isNegative, isBold, color }) => (
     <div className="flex justify-between items-center py-3 border-b border-slate-50 last:border-0 px-2 hover:bg-slate-50/50 transition-colors">
@@ -106,9 +107,12 @@ export default function PnL() {
           </div>
         </div>
         <div className="flex items-center gap-2 bg-white border border-slate-100 rounded-2xl p-1.5 shadow-sm">
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
-          <span className="text-slate-300 font-bold">—</span>
-          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
+          <input 
+            type="month" 
+            value={monthStr} 
+            onChange={e => setMonthStr(e.target.value)} 
+            className="bg-transparent text-slate-900 text-sm font-bold px-4 py-2 outline-none" 
+          />
         </div>
       </div>
 
@@ -117,9 +121,11 @@ export default function PnL() {
         
         <section>
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 px-2">01. Доходы</h3>
-          <TableRow label="Выручка от услуг" value={metrics.revenue} />
-          <TableRow label="Комиссия банка (эквайринг)" value={metrics.bankCommission} isNegative />
-          <TableRow label="Чистая выручка" value={metrics.netRevenue} isBold color="text-indigo-600" />
+          <TableRow label="Выручка от услуг" value={metrics.serviceRevenue} />
+          <TableRow label="Продажа товаров" value={metrics.goodsRevenue} />
+          <TableRow label="Себестоимость товаров" value={metrics.cogs} isNegative />
+          <TableRow label="Комиссия банка (2.5%)" value={metrics.bankCommission} isNegative />
+          <TableRow label="Валовая прибыль" value={metrics.grossProfit} isBold color="text-indigo-600" />
         </section>
 
         <section>

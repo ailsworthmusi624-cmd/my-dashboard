@@ -13,8 +13,10 @@ export default function Masters() {
   const removeMaster = useAppStore(s => s.removeMaster);
 
   const today = new Date();
-  const [startDate, setStartDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(() => new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0]);
+  const currentMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const todayStr = `${currentMonthStr}-${String(today.getDate()).padStart(2, '0')}`;
+  const [startDate, setStartDate] = useState(`${currentMonthStr}-01`);
+  const [endDate, setEndDate] = useState(todayStr);
 
   const [expandedId, setExpandedId] = useState(null);
   
@@ -54,6 +56,14 @@ export default function Masters() {
             const amt = Number(srv.amount) || 0;
             grossRevenue += amt;
             salaryPercent += amt * (Number(srv.rate) / 100);
+          });
+        }
+        
+        if (entry.goods) {
+          entry.goods.forEach(g => {
+            const amt = Number(g.amount) || 0;
+            grossRevenue += amt;
+            salaryPercent += amt * (Number(g.rate) / 100);
           });
         }
       });
