@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { BarChart3, TrendingUp } from 'lucide-react';
 import useAppStore from '../../../store/useAppStore';
 import { fmt } from '../../../shared/utils/format';
+import AiSearchBar from '../../../shared/components/AiSearchBar';
 
 export default function PnL() {
   const journal = useAppStore(s => s.journal ?? []);
@@ -94,6 +95,7 @@ export default function PnL() {
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300">
+      <AiSearchBar />
       
       {/* Header */}
       <div className="bg-white p-4 md:p-6 rounded-[24px] md:rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">

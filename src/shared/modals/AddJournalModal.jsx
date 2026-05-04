@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Calendar, User, Scissors } from 'lucide-react';
 import useAppStore from '../../store/useAppStore';
 
-export default function AddJournalModal({ isOpen, onClose }) {
+export default function AddJournalModal({ isOpen, onClose, editData }) {
   const masters = useAppStore(s => s.masters ?? []);
   const addJournalEntry = useAppStore(s => s.addJournalEntry);
+  const updateJournalEntry = useAppStore(s => s.updateJournalEntry);
   
   // Состояние формы
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -18,13 +19,29 @@ export default function AddJournalModal({ isOpen, onClose }) {
   ]);
   const [goods, setGoods] = useState([]);
 
-  // Установка мастера по умолчанию при открытии
+  // Установка данных при открытии
   useEffect(() => {
-    if (isOpen && masters.length > 0 && !masterName) {
-      setMasterName(masters[0].name);
-      setServices([{ id: Date.now(), title: SERVICES_OPTIONS[0], amount: '', rate: masters[0].rate1 }]);
+    if (isOpen) {
+      if (editData) {
+        setDate(editData.date || new Date().toISOString().split('T')[0]);
+        setMasterName(editData.masterName || (masters[0]?.name || ''));
+        setPaymentMethod(editData.paymentMethod || 'card');
+        
+        const defaultRate = editData.masterName 
+          ? (masters.find(m => m.name === editData.masterName)?.rate1 || '') 
+          : (masters.length > 0 ? masters[0].rate1 : '');
+          
+        setServices(editData.services?.length ? editData.services : [{ id: Date.now(), title: SERVICES_OPTIONS[0], amount: '', rate: defaultRate }]);
+        setGoods(editData.goods || []);
+      } else {
+        setDate(new Date().toISOString().split('T')[0]);
+        setMasterName(masters.length > 0 ? masters[0].name : '');
+        setPaymentMethod('card');
+        setServices([{ id: Date.now(), title: SERVICES_OPTIONS[0], amount: '', rate: masters.length > 0 ? masters[0].rate1 : '' }]);
+        setGoods([]);
+      }
     }
-  }, [isOpen, masters]);
+  }, [isOpen, editData, masters]);
 
   if (!isOpen) return null;
 
@@ -68,8 +85,7 @@ export default function AddJournalModal({ isOpen, onClose }) {
       return;
     }
 
-    const newEntry = {
-      id: Date.now(),
+    const entryData = {
       date,
       masterName,
       paymentMethod,
@@ -77,11 +93,12 @@ export default function AddJournalModal({ isOpen, onClose }) {
       goods: goods.map(g => ({ ...g, title: g.title, amount: Number(g.amount), cogs: Number(g.cogs), rate: Number(g.rate) }))
     };
 
-    addJournalEntry(newEntry);
+    if (editData && !editData.isNew) {
+      updateJournalEntry({ ...entryData, id: editData.id });
+    } else {
+      addJournalEntry({ ...entryData, id: Date.now() });
+    }
     onClose();
-    
-    setServices([{ id: Date.now(), title: SERVICES_OPTIONS[0], amount: '', rate: masters.find(m => m.name === masterName)?.rate1 || '' }]);
-    setGoods([]);
   };
 
   return (
@@ -90,7 +107,7 @@ export default function AddJournalModal({ isOpen, onClose }) {
         
         {/* Шапка модалки */}
         <div className="flex items-center justify-between p-6 border-b border-slate-100 shrink-0">
-          <h3 className="text-xl font-black text-slate-900">Новая запись</h3>
+          <h3 className="text-xl font-black text-slate-900">{(editData && !editData.isNew) ? 'Редактировать запись' : 'Новая запись'}</h3>
           <button onClick={onClose} className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 hover:text-slate-900 rounded-full transition-colors">
             <X size={20} />
           </button>
@@ -234,8 +251,8 @@ export default function AddJournalModal({ isOpen, onClose }) {
             <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Итого чек</div>
             <div className="text-xl font-black text-slate-900">{totalAmount} ₽</div>
           </div>
-          <button onClick={handleSave} className="px-8 py-4 bg-purple-600 text-white font-black rounded-2xl shadow-lg shadow-purple-200 transition-transform hover:scale-105 active:scale-95">
-            Сохранить
+          <button onClick={handleSave} className="px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-200 transition-transform hover:scale-105 active:scale-95">
+            {(editData && !editData.isNew) ? 'Сохранить изменения' : 'Сохранить'}
           </button>
         </div>
 

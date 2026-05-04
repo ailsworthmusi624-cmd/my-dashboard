@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Receipt, Plus, Trash2, Calendar, Tag, X, MessageSquare } from 'lucide-react';
 import useAppStore from '../../../store/useAppStore';
 import { fmt, fmtDate } from '../../../shared/utils/format';
+import AiSearchBar from '../../../shared/components/AiSearchBar';
 
 export default function Expenses() {
   const expenses = useAppStore(s => s.expenses ?? []);
@@ -54,6 +55,7 @@ export default function Expenses() {
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300">
+      <AiSearchBar />
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-purple-600 rounded-[16px] text-white flex items-center justify-center shadow-lg shadow-purple-200">

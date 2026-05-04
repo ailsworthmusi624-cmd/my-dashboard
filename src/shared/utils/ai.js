@@ -8,7 +8,7 @@ export const generateSalonInsights = async (metrics) => {
   const API_KEY = import.meta.env.VITE_GEMINI_KEY;
   if (!API_KEY) return [{ type: 'warning', title: 'Нет ключа API', text: 'Укажите VITE_GEMINI_KEY в .env' }];
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
   const prompt = `Ты — топовый финансовый директор и бизнес-консультант салона красоты. Проанализируй показатели текущего месяца:
   - Выручка: ${metrics.revenue} (План: ${metrics.planTotal}, Выполнено: ${metrics.planProgress.toFixed(1)}%)

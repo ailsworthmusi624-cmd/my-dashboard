@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Users, Calculator, Calendar, Scissors, Banknote, Plus, ChevronDown, ChevronUp, Edit3, Trash2 } from 'lucide-react';
 import useAppStore from '../../../store/useAppStore';
 import { fmt, fmtDate } from '../../../shared/utils/format';
+import AiSearchBar from '../../../shared/components/AiSearchBar';
 
 export default function Masters() {
   const masters = useAppStore(s => s.masters ?? []);
@@ -111,6 +112,7 @@ export default function Masters() {
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300">
+      <AiSearchBar />
       
       {/* ─── ШАПКА ФИЛЬТРА ДАТ ─── */}
       <div className="bg-white/80 backdrop-blur-xl p-4 md:p-6 rounded-[24px] md:rounded-[32px] border border-white/20 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">

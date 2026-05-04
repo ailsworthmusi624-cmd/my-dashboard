@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { AlertCircle, Target, Users, Banknote, Calendar, Wallet, X, Sparkles, Loader2, Lightbulb } from 'lucide-react';
+import { AlertCircle, Target, Users, Banknote, Calendar, Wallet, X } from 'lucide-react';
 import useAppStore from '../../../store/useAppStore';
 import { fmt } from '../../../shared/utils/format';
-import { generateSalonInsights } from '../../../shared/utils/ai';
+import AiSearchBar from '../../../shared/components/AiSearchBar';
 
 export default function SalonDashboard() {
   const journal = useAppStore(s => s.journal ?? []);
@@ -18,8 +18,6 @@ export default function SalonDashboard() {
   const [endDate, setEndDate] = useState(todayStr);
 
   const [isRevenueTrendOpen, setIsRevenueTrendOpen] = useState(false);
-  const [insights, setInsights] = useState([]);
-  const [isAiLoading, setIsAiLoading] = useState(false);
 
   const metrics = useMemo(() => {
     const fJournal = journal.filter(e => e.date >= startDate && e.date <= endDate);
@@ -73,13 +71,14 @@ export default function SalonDashboard() {
       }
     });
 
-    const opEx = fExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0) + payroll;
-    const usnTax = revenue * 0.06;
-    const netProfit = revenue - bankCommission - opEx - usnTax;
+    const fixedCosts = fExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const variableCosts = payroll + bankCommission + (revenue * 0.06); // Налог и комиссии - тоже переменные расходы
+    const netProfit = revenue - fixedCosts - variableCosts;
     
     const margin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
-    const breakEven = margin > 0 ? opEx / (margin / 100) : 0;
-    const safetyMargin = revenue > 0 ? ((revenue - breakEven) / revenue) * 100 : 0;
+    const cmRatio = revenue > 0 ? (revenue - variableCosts) / revenue : 0; // Маржинальная рентабельность
+    const breakEven = cmRatio > 0 ? fixedCosts / cmRatio : 0; // Точка безубыточности
+    const safetyMargin = revenue > 0 ? ((revenue - breakEven) / revenue) * 100 : 0; // Запас прочности
     
     const planTotal = masters.reduce((acc, m) => acc + (Number(m.plan) || 0), 0);
     const planProgress = planTotal > 0 ? (revenue / planTotal) * 100 : 0;
@@ -126,13 +125,6 @@ export default function SalonDashboard() {
     return Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0])).map(([month, data]) => ({ month, ...data }));
   }, [journal]);
 
-  const handleAskAI = async () => {
-    setIsAiLoading(true);
-    const res = await generateSalonInsights(metrics);
-    setInsights(res);
-    setIsAiLoading(false);
-  };
-
   const alerts = [];
   if (metrics.revenue > 0 && metrics.revenue < metrics.breakEven) {
     alerts.push({ type: 'danger', text: `Выручка ниже точки безубыточности на ${fmt(metrics.breakEven - metrics.revenue)} — срочно анализировать` });
@@ -156,6 +148,7 @@ export default function SalonDashboard() {
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300 pb-10">
+      <AiSearchBar />
       
       {/* ─── ШАПКА ─── */}
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
@@ -173,43 +166,6 @@ export default function SalonDashboard() {
           <span className="text-slate-300 font-bold">—</span>
           <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
         </div>
-      </div>
-
-      {/* ─── AI СОВЕТНИК ─── */}
-      <div className="bg-gradient-to-br from-indigo-900 to-purple-900 rounded-[32px] p-6 md:p-8 text-white shadow-xl shadow-indigo-200">
-        <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/10 rounded-[16px] flex items-center justify-center backdrop-blur-md">
-              <Sparkles className="text-purple-300" size={24}/>
-            </div>
-            <div>
-              <h3 className="font-black text-xl">AI-Аналитик</h3>
-              <p className="text-xs text-purple-200 font-medium">Gemini 1.5 Flash</p>
-            </div>
-          </div>
-          {insights.length === 0 && !isAiLoading && (
-            <button onClick={handleAskAI} className="bg-white text-indigo-900 px-5 py-3 rounded-2xl font-black text-sm hover:scale-105 transition-transform flex items-center justify-center gap-2">
-              Анализировать показатели
-            </button>
-          )}
-          {isAiLoading && (
-            <div className="flex items-center gap-2 text-purple-200 text-sm font-bold bg-white/10 px-5 py-3 rounded-2xl">
-              <Loader2 className="animate-spin" size={16}/> Анализирую...
-            </div>
-          )}
-        </div>
-
-        {insights.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in">
-            {insights.map((ins, i) => (
-              <div key={i} className="bg-white/10 border border-white/20 p-5 rounded-[24px] backdrop-blur-md">
-                <div className={`text-[10px] font-black uppercase tracking-widest mb-2 flex items-center gap-1 ${ins.type === 'success' ? 'text-emerald-400' : ins.type === 'warning' ? 'text-amber-400' : 'text-blue-300'}`}><Lightbulb size={12}/> {ins.type === 'success' ? 'Достижение' : ins.type === 'warning' ? 'Риск' : 'Совет'}</div>
-                <div className="font-black text-base mb-2">{ins.title}</div>
-                <div className="text-xs text-purple-100 leading-relaxed font-medium">{ins.text}</div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* ─── АЛЕРТЫ ─── */}
