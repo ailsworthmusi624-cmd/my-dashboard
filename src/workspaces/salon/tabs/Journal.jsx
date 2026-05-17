@@ -97,14 +97,14 @@ export default function Journal() {
           });
           
           return (
-            <div key={date} className="bg-white rounded-[32px] p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div key={date} className="bg-white/60 backdrop-blur-xl rounded-[32px] p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/80 animate-in fade-in slide-in-from-bottom-2 duration-300">
               
               {/* Заголовок карточки дня со сводной статистикой */}
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5 pb-5 border-b border-slate-100">
                 <h3 className="text-lg font-black text-slate-900 capitalize tracking-tight">
                   {formatDate(date)}
                 </h3>
-                <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-slate-600 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-100/50">
+                <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-slate-600 bg-white/60 backdrop-blur-sm px-4 py-2.5 rounded-2xl border border-white/80">
                   <span>Выручка: <span className="text-emerald-600 ml-1">{totalRevenue.toLocaleString()} ₽</span></span>
                   <span className="text-slate-300">|</span>
                   <span>Чеков: <span className="text-slate-900 ml-1">{entries.length}</span></span>
@@ -129,7 +129,7 @@ export default function Journal() {
                   });
 
                   return (
-                    <div key={masterName} className="bg-slate-50 rounded-[24px] border border-slate-100 overflow-hidden transition-all">
+                    <div key={masterName} className="bg-white/30 rounded-[24px] border border-white/80 overflow-hidden transition-all">
                       <div 
                         onClick={() => toggleMaster(date, masterName)}
                         className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-colors"
@@ -218,7 +218,7 @@ export default function Journal() {
           );
         })}
         {sortedDates.length === 0 && (
-          <div className="text-center py-16 bg-white rounded-[32px] border border-slate-100 border-dashed animate-in fade-in">
+          <div className="text-center py-16 bg-white/60 backdrop-blur-xl rounded-[32px] border border-white/80 border-dashed animate-in fade-in">
             <div className="w-20 h-20 mx-auto mb-5 rounded-[24px] flex items-center justify-center bg-purple-50 text-purple-400">
               <Calendar size={32} />
             </div>

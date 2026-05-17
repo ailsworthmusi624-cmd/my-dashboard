@@ -39,7 +39,7 @@ export default function Dashboard() {
       </div>
 
       {/* ─── СПИСОК ДОЛГОВ ─── */}
-      <div className="bg-white rounded-[24px] md:rounded-[40px] border border-slate-100 shadow-sm p-4 md:p-8">
+      <div className="bg-white/60 backdrop-blur-xl rounded-[24px] md:rounded-[40px] border border-white/80 shadow-sm p-4 md:p-8">
         <div className="flex justify-between items-center mb-6">
           <h3 className="font-black text-xl md:text-2xl text-slate-900">Список платежей</h3>
           {archivedDebts.length > 0 && (

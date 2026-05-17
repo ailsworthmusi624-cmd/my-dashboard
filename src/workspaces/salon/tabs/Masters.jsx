@@ -139,7 +139,7 @@ export default function Masters() {
 
       {/* ─── ФОРМА ДОБАВЛЕНИЯ МАСТЕРА ─── */}
       {isAdding && (
-        <div className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm animate-in slide-in-from-top-4">
+        <div className="bg-white/60 backdrop-blur-xl p-6 rounded-[32px] border border-white/80 shadow-sm animate-in slide-in-from-top-4">
           <h3 className="font-black text-lg text-slate-900 mb-4">Новый мастер</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Имя</label><input type="text" value={newMaster.name} onChange={e => setNewMaster({...newMaster, name: e.target.value})} placeholder="Анна" className="w-full bg-slate-50 border border-slate-100 text-slate-900 font-bold rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 ring-purple-300" /></div>
@@ -155,7 +155,7 @@ export default function Masters() {
         {mastersStats.map(master => {
           const isExpanded = expandedId === master.id;
           return (
-            <div key={master.id} className="bg-white rounded-[32px] border border-slate-100 shadow-sm transition-all overflow-hidden">
+            <div key={master.id} className="bg-white/60 backdrop-blur-xl rounded-[32px] border border-white/80 shadow-sm transition-all overflow-hidden">
               {/* Основная карточка */}
               <div className="p-6 cursor-pointer hover:bg-slate-50/50 transition-colors" onClick={() => setExpandedId(isExpanded ? null : master.id)}>
                 <div className="flex justify-between items-start mb-4">
@@ -171,7 +171,7 @@ export default function Masters() {
 
                 <div className="grid grid-cols-1 gap-4 mb-6">
                   <ProgressBar label="Выручка" current={fmt(master.grossRevenue)} target={fmt(master.plan)} stats={master.stats.revenue} />
-                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100 mt-2">
+                  <div className="flex justify-between items-center bg-white/30 p-3 rounded-2xl border border-white/80 mt-2">
                     <div><div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Клиенты</div><div className="font-bold text-slate-900 text-sm">{master.clientCount} чел.</div></div>
                     <div className="text-right"><div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Средний чек</div><div className="font-bold text-slate-900 text-sm">{Math.round(master.stats.currentAvgCheck)} ₽</div></div>
                   </div>
@@ -186,7 +186,7 @@ export default function Masters() {
               {isExpanded && (
                 <div className="p-6 pt-0 border-t border-slate-50 bg-slate-50/30 space-y-4">
                   {/* Настройки мастера */}
-                  <div className="grid grid-cols-2 gap-4 bg-white p-4 rounded-2xl border border-slate-100">
+                  <div className="grid grid-cols-2 gap-4 bg-white/60 backdrop-blur-xl p-4 rounded-2xl border border-white/80">
                     <div>
                       <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1"><Edit3 size={10}/> Ставка (%)</label>
                       <input type="number" value={master.rate1 || ''} onChange={e => updateMaster(master.id, { rate1: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 text-slate-900 font-mono font-bold rounded-xl px-3 py-2 outline-none focus:border-purple-300" />

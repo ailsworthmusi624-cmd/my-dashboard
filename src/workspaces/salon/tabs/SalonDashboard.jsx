@@ -133,7 +133,7 @@ export default function SalonDashboard() {
   const safeWithdrawal = Math.max(0, metrics.netProfit - metrics.taxReserveTarget - metrics.insuranceFund);
 
   const KpiBox = ({ label1, value1, sub1, label2, value2, highlight, onClick }) => (
-    <div onClick={onClick} className={`bg-white p-5 rounded-[24px] shadow-sm border border-slate-100 flex flex-col justify-between h-full hover:shadow-md transition-all ${onClick ? 'cursor-pointer hover:border-indigo-300 hover:ring-2 ring-indigo-50' : ''}`}>
+    <div onClick={onClick} className={`bg-white/60 backdrop-blur-xl p-5 rounded-[24px] shadow-sm border border-white/80 flex flex-col justify-between h-full hover:shadow-md transition-all ${onClick ? 'cursor-pointer hover:border-indigo-300 hover:ring-2 ring-indigo-50' : ''}`}>
       <div className="mb-4">
         <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{label1}</div>
         <div className={`font-mono text-2xl md:text-3xl font-black ${highlight ? 'text-indigo-600' : 'text-slate-900'}`}>{value1}</div>
@@ -161,7 +161,7 @@ export default function SalonDashboard() {
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Управление салоном</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-white border border-slate-100 rounded-2xl p-1.5 shadow-sm">
+        <div className="flex items-center gap-2 bg-white/60 backdrop-blur-xl border border-white/80 rounded-2xl p-1.5 shadow-sm">
           <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
           <span className="text-slate-300 font-bold">—</span>
           <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
@@ -206,11 +206,11 @@ export default function SalonDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* ─── МАСТЕРА И ФОТ ─── */}
-        <div className="lg:col-span-2 bg-white rounded-[32px] border border-slate-100 shadow-sm p-6 md:p-8">
+        <div className="lg:col-span-2 bg-white/60 backdrop-blur-xl rounded-[32px] border border-white/80 shadow-sm p-6 md:p-8">
           <h3 className="font-black text-xl text-slate-900 mb-6 flex items-center gap-2"><Users className="text-indigo-500" size={20}/> Эффективность мастеров</h3>
           <div className="space-y-3">
             {metrics.mastersList.map(m => (
-              <div key={m.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-[20px] border border-slate-100/50 hover:bg-slate-100 transition-colors">
+              <div key={m.id} className="flex justify-between items-center p-4 bg-white/30 rounded-[20px] border border-white/80 hover:bg-white/50 transition-colors">
                 <span className="font-black text-sm text-slate-900">{m.name}</span>
                 <div className="flex gap-6 md:gap-10 text-right">
                   <div><div className="text-[9px] font-black uppercase tracking-widest text-slate-400">Выручка</div><div className="font-mono text-sm font-bold text-slate-700">{fmt(m.gross)}</div></div>
@@ -226,16 +226,16 @@ export default function SalonDashboard() {
         </div>
 
         {/* ─── РЕЗЕРВЫ ─── */}
-        <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-6 md:p-8">
+        <div className="bg-white/60 backdrop-blur-xl rounded-[32px] border border-white/80 shadow-sm p-6 md:p-8">
           <h3 className="font-black text-xl text-slate-900 mb-6 flex items-center gap-2"><Wallet className="text-emerald-500" size={20}/> Фонды</h3>
           <div className="space-y-4">
-            <div className="p-5 bg-slate-50 rounded-[24px] border border-slate-100">
+            <div className="p-5 bg-white/30 rounded-[24px] border border-white/80">
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Резерв под налог (3%)</div>
               <div className="font-mono text-2xl font-black text-slate-900 mb-2">{fmt(metrics.taxReserveTarget)}</div>
               <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className="w-0 h-full bg-emerald-500"/></div>
               <div className="text-[9px] font-bold text-slate-400 mt-2 uppercase tracking-widest">Цель по выручке</div>
             </div>
-            <div className="p-5 bg-slate-50 rounded-[24px] border border-slate-100">
+            <div className="p-5 bg-white/30 rounded-[24px] border border-white/80">
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Страховой фонд (10%)</div>
               <div className="font-mono text-2xl font-black text-slate-900 mb-2">{fmt(metrics.insuranceFund)}</div>
               <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">От чистой прибыли</div>
@@ -247,14 +247,14 @@ export default function SalonDashboard() {
       {/* ─── МОДАЛКА ТЕНДЕНЦИИ ВЫРУЧКИ ─── */}
       {isRevenueTrendOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[32px] p-6 md:p-8 w-full max-w-lg shadow-2xl">
+          <div className="bg-white/60 backdrop-blur-xl rounded-[32px] p-6 md:p-8 w-full max-w-lg shadow-2xl border border-white/80">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-black text-slate-900">Тенденция выручки</h3>
               <button onClick={() => setIsRevenueTrendOpen(false)} className="w-8 h-8 flex items-center justify-center bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100"><X size={18}/></button>
             </div>
             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
               {revenueTrends.map(t => (
-                 <div key={t.month} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                 <div key={t.month} className="flex justify-between items-center p-4 bg-white/30 rounded-2xl border border-white/80">
                    <span className="font-bold text-slate-700">{t.month}</span>
                    <span className="font-black text-indigo-600">{fmt(t.revenue)}</span>
                  </div>

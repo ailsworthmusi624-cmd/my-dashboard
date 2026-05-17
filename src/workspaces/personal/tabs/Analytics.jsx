@@ -31,7 +31,7 @@ export default function Analytics() {
       </div>
 
       {/* ─── СТРУКТУРА ДОЛГА (ТАЙЛВИНД БАР) ─── */}
-      <div className="bg-white rounded-[24px] md:rounded-[40px] border border-slate-100 shadow-sm p-6 md:p-8">
+      <div className="bg-white/60 backdrop-blur-xl rounded-[24px] md:rounded-[40px] border border-white/80 shadow-sm p-6 md:p-8">
         <h3 className="font-black text-xl text-slate-900 mb-6 flex items-center gap-2"><Wallet size={20} className="text-emerald-500"/> Структура долга</h3>
         
         {totalDebt === 0 ? (
@@ -51,7 +51,7 @@ export default function Analytics() {
             {/* Легенда */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {sortedByBalance.map((d, i) => (
-                <div key={d.id} className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl">
+                <div key={d.id} className="flex items-center gap-3 bg-white/30 p-3 rounded-2xl">
                   <div className={`w-3 h-3 rounded-full ${colors[i % colors.length]} shrink-0`} />
                   <div className="truncate">
                     <div className="text-xs font-bold text-slate-900 truncate">{d.name}</div>
@@ -65,11 +65,11 @@ export default function Analytics() {
       </div>
 
       {/* ─── АНТИ-РЕЙТИНГ ПО СТАВКАМ ─── */}
-      <div className="bg-white rounded-[24px] md:rounded-[40px] border border-slate-100 shadow-sm p-6 md:p-8">
+      <div className="bg-white/60 backdrop-blur-xl rounded-[24px] md:rounded-[40px] border border-white/80 shadow-sm p-6 md:p-8">
         <h3 className="font-black text-xl text-slate-900 mb-6 flex items-center gap-2"><Flame size={20} className="text-red-500"/> Токсичные долги (по ставке)</h3>
         <div className="space-y-3">
           {sortedByRate.map(d => (
-            <div key={d.id} className={`p-4 rounded-[20px] flex justify-between items-center border ${d.rate > 20 ? 'bg-red-50/50 border-red-100' : 'bg-slate-50 border-slate-100'}`}>
+            <div key={d.id} className={`p-4 rounded-[20px] flex justify-between items-center border ${d.rate > 20 ? 'bg-red-50/50 border-red-100' : 'bg-white/30 border-white/80'}`}>
               <div className="font-bold text-slate-900 text-sm">{d.name}</div>
               <div className={`text-lg font-black ${d.rate > 20 ? 'text-red-600' : 'text-slate-700'}`}>{d.rate}% <span className="text-[10px] font-medium text-slate-500">год.</span></div>
             </div>

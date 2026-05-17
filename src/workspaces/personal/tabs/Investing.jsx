@@ -20,7 +20,7 @@ export default function Investing() {
     return calcDepositIncome(Number(calcAmount), Number(calcRate), start, end, true);
   }, [calcAmount, calcRate, calcMonths]);
 
-  const inCls = "w-full bg-white p-4 rounded-2xl outline-none font-bold text-slate-900 border border-slate-200 focus:border-emerald-300 focus:ring-2 ring-emerald-100 transition-all text-sm";
+  const inCls = "w-full bg-white/70 backdrop-blur-sm p-4 rounded-2xl outline-none font-bold text-slate-900 border border-slate-200/70 focus:border-emerald-300 focus:ring-2 ring-emerald-100 transition-all text-sm";
   const lCls = "text-[10px] uppercase font-black text-slate-400 ml-1 mb-1.5 block tracking-widest";
 
   return (
@@ -37,7 +37,7 @@ export default function Investing() {
       </div>
 
       {/* ─── МОИ ВКЛАДЫ ─── */}
-      <div className="bg-white rounded-[24px] md:rounded-[40px] border border-slate-100 shadow-sm p-6 md:p-8">
+      <div className="bg-white/60 backdrop-blur-xl rounded-[24px] md:rounded-[40px] border border-white/80 shadow-sm p-6 md:p-8">
         <div className="flex justify-between items-center mb-6">
           <h3 className="font-black text-xl text-slate-900 flex items-center gap-2"><Landmark size={20} className="text-emerald-500"/> Мои вклады</h3>
           <div className="bg-emerald-50 px-4 py-2 rounded-xl text-emerald-700 font-black text-sm">Итого: {fmt(totalDeposits)}</div>
@@ -47,7 +47,7 @@ export default function Investing() {
           {deposits.length === 0 ? (
             <p className="text-slate-400 text-sm font-medium col-span-full">У вас пока нет активных вкладов.</p>
           ) : deposits.map(dep => (
-            <div key={dep.id} className="p-5 border border-slate-100 bg-slate-50 rounded-[24px]">
+            <div key={dep.id} className="p-5 border border-white/80 bg-white/30 rounded-[24px]">
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <div className="font-black text-slate-900">{dep.name}</div>
@@ -62,7 +62,7 @@ export default function Investing() {
       </div>
 
       {/* ─── КАЛЬКУЛЯТОР ВЛОЖЕНИЙ ─── */}
-      <div className="bg-slate-100 rounded-[24px] md:rounded-[40px] p-6 md:p-8">
+      <div className="bg-white/30 rounded-[24px] md:rounded-[40px] p-6 md:p-8">
         <h3 className="font-black text-xl text-slate-900 flex items-center gap-2 mb-6"><Calculator size={20} className="text-slate-500"/> Калькулятор сложного процента</h3>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

@@ -39,7 +39,7 @@ export default function Calculators() {
         </div>
       </div>
 
-      <div className="bg-white rounded-[24px] md:rounded-[40px] border border-slate-100 shadow-sm p-6 md:p-8">
+      <div className="bg-white/60 backdrop-blur-xl rounded-[24px] md:rounded-[40px] border border-white/80 shadow-sm p-6 md:p-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div>
             <label className={lCls}>Выберите кредит</label>
@@ -56,19 +56,19 @@ export default function Calculators() {
         </div>
 
         {selectedDebt && result && isFinite(result.baseMon) && (
-          <div className="bg-slate-50 rounded-[24px] p-6 border border-slate-100">
+          <div className="bg-white/30 rounded-[24px] p-6 border border-white/80">
             <h3 className="font-black text-slate-900 text-lg mb-5 flex items-center gap-2">
               <CheckCircle2 className="text-emerald-500" size={20} /> Результат симуляции
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white p-5 rounded-2xl shadow-sm">
+              <div className="bg-white/60 backdrop-blur-xl p-5 rounded-2xl shadow-sm border border-white/80">
                 <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2 flex items-center gap-1"><TrendingDown size={14}/> Сэкономлено на %</div>
                 <div className="text-3xl font-black text-emerald-600">{fmt(result.savedMoney)}</div>
                 <div className="text-[11px] text-slate-400 mt-1 font-medium">Ваша чистая выгода</div>
               </div>
               
-              <div className="bg-white p-5 rounded-2xl shadow-sm">
+              <div className="bg-white/60 backdrop-blur-xl p-5 rounded-2xl shadow-sm border border-white/80">
                 <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2 flex items-center gap-1"><Clock size={14}/> Сокращение срока</div>
                 <div className="text-3xl font-black text-emerald-600">−{result.savedMon} мес.</div>
                 <div className="text-[11px] text-slate-400 mt-1 font-medium">Закроете за {result.extraMon} мес. вместо {result.baseMon} мес.</div>

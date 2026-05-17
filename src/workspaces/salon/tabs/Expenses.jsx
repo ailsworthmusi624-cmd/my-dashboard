@@ -67,7 +67,7 @@ export default function Expenses() {
           </div>
         </div>
         <div className="flex flex-col md:flex-row items-center gap-4">
-          <div className="flex items-center gap-2 bg-white border border-slate-100 rounded-2xl p-1.5 shadow-sm w-full md:w-auto">
+          <div className="flex items-center gap-2 bg-white/60 backdrop-blur-xl border border-white/80 rounded-2xl p-1.5 shadow-sm w-full md:w-auto">
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
             <span className="text-slate-300 font-bold">—</span>
             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
@@ -121,7 +121,7 @@ export default function Expenses() {
         </div>
       )}
 
-      <div className="bg-white rounded-[24px] md:rounded-[40px] border border-slate-100 shadow-sm p-4 md:p-8 space-y-3">
+      <div className="bg-white/60 backdrop-blur-xl rounded-[24px] md:rounded-[40px] border border-white/80 shadow-sm p-4 md:p-8 space-y-3">
         {fExpenses.length === 0 ? (
           <div className="text-center py-12"><div className="text-4xl mb-3">💸</div><p className="font-bold text-slate-400">Расходов пока нет.</p></div>
         ) : (
@@ -146,14 +146,14 @@ export default function Expenses() {
       {/* ─── МОДАЛКА ТЕНДЕНЦИИ РАСХОДОВ ─── */}
       {isTrendOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[32px] p-6 md:p-8 w-full max-w-lg shadow-2xl">
+          <div className="bg-white/60 backdrop-blur-xl rounded-[32px] p-6 md:p-8 w-full max-w-lg shadow-2xl border border-white/80">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-black text-slate-900">Тенденция расходов</h3>
               <button onClick={() => setIsTrendOpen(false)} className="w-8 h-8 flex items-center justify-center bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100"><X size={18}/></button>
             </div>
             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
               {expenseTrends.map(t => (
-                 <div key={t.month} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                 <div key={t.month} className="flex justify-between items-center p-4 bg-white/30 rounded-2xl border border-white/80">
                    <span className="font-bold text-slate-700">{t.month}</span>
                    <span className="font-black text-rose-500">{fmt(t.total)}</span>
                  </div>
