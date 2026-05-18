@@ -48,12 +48,14 @@ const INITIAL_DEPOSITS = [
     capitalization:true, payoutPeriod:'monthly', notes:'Автопролонгация' },
 ];
 
+const DEFAULT_RATES = { 'Маникюр': 40, 'Педикюр': 40, 'Стрижка': 40, 'Окрашивание': 40, 'Брови': 40, 'Прочее': 40 };
+
 const INITIAL_MASTERS = [
-  { id:'m1', name:'Анна',  role:'Мастер', rate1:40, plan: 180000 },
-  { id:'m2', name:'Юля',   role:'Мастер', rate1:35, plan: 140000 },
-  { id:'m3', name:'Оля',   role:'Мастер', rate1:38, plan: 150000 },
-  { id:'m4', name:'Елена', role:'Мастер', rate1:40, plan: 200000 },
-  { id:'m5', name:'Вика',  role:'Мастер', rate1:35, plan: 120000 },
+  { id:'m1', name:'Анна',  role:'Мастер', rate1:40, plan: 180000, rates: { ...DEFAULT_RATES } },
+  { id:'m2', name:'Юля',   role:'Мастер', rate1:35, plan: 140000, rates: { 'Маникюр': 35, 'Педикюр': 35, 'Стрижка': 35, 'Окрашивание': 35, 'Брови': 35, 'Прочее': 35 } },
+  { id:'m3', name:'Оля',   role:'Мастер', rate1:38, plan: 150000, rates: { 'Маникюр': 38, 'Педикюр': 38, 'Стрижка': 38, 'Окрашивание': 38, 'Брови': 38, 'Прочее': 38 } },
+  { id:'m4', name:'Елена', role:'Мастер', rate1:40, plan: 200000, rates: { ...DEFAULT_RATES } },
+  { id:'m5', name:'Вика',  role:'Мастер', rate1:35, plan: 120000, rates: { 'Маникюр': 35, 'Педикюр': 35, 'Стрижка': 35, 'Окрашивание': 35, 'Брови': 35, 'Прочее': 35 } },
 ];
 
 const useAppStore = create((set, get) => ({

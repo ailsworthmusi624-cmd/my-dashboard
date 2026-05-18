@@ -13,6 +13,11 @@ export default function AddJournalModal({ isOpen, onClose, editData }) {
   const [paymentMethod, setPaymentMethod] = useState('card');
   
   const SERVICES_OPTIONS = ["Маникюр", "Педикюр", "Стрижка", "Окрашивание", "Брови", "Прочее"];
+
+  const getRate = (master, serviceTitle) => {
+    if (master?.rates?.[serviceTitle]) return master.rates[serviceTitle];
+    return master?.rate1 ?? 40;
+  };
   
   const [services, setServices] = useState([
     { id: Date.now(), title: SERVICES_OPTIONS[0], amount: '', rate: '' }
@@ -27,9 +32,10 @@ export default function AddJournalModal({ isOpen, onClose, editData }) {
         setMasterName(editData.masterName || (masters[0]?.name || ''));
         setPaymentMethod(editData.paymentMethod || 'card');
         
-        const defaultRate = editData.masterName 
-          ? (masters.find(m => m.name === editData.masterName)?.rate1 || '') 
-          : (masters.length > 0 ? masters[0].rate1 : '');
+        const editMaster = editData.masterName
+          ? masters.find(m => m.name === editData.masterName)
+          : masters[0];
+        const defaultRate = editMaster ? getRate(editMaster, SERVICES_OPTIONS[0]) : '';
           
         setServices(editData.services?.length ? editData.services : [{ id: Date.now(), title: SERVICES_OPTIONS[0], amount: '', rate: defaultRate }]);
         setGoods(editData.goods || []);
@@ -37,7 +43,7 @@ export default function AddJournalModal({ isOpen, onClose, editData }) {
         setDate(new Date().toISOString().split('T')[0]);
         setMasterName(masters.length > 0 ? masters[0].name : '');
         setPaymentMethod('card');
-        setServices([{ id: Date.now(), title: SERVICES_OPTIONS[0], amount: '', rate: masters.length > 0 ? masters[0].rate1 : '' }]);
+        setServices([{ id: Date.now(), title: SERVICES_OPTIONS[0], amount: '', rate: masters.length > 0 ? getRate(masters[0], SERVICES_OPTIONS[0]) : '' }]);
         setGoods([]);
       }
     }
@@ -50,13 +56,13 @@ export default function AddJournalModal({ isOpen, onClose, editData }) {
     setMasterName(name);
     const selectedMaster = masters.find(m => m.name === name);
     if (selectedMaster) {
-      setServices(prev => prev.map(s => s.amount === '' ? { ...s, rate: selectedMaster.rate1 } : s));
+      setServices(prev => prev.map(s => s.amount === '' ? { ...s, rate: getRate(selectedMaster, s.title) } : s));
     }
   };
 
   const addService = () => {
     const selectedMaster = masters.find(m => m.name === masterName);
-    const defaultRate = selectedMaster ? selectedMaster.rate1 : 0;
+    const defaultRate = selectedMaster ? getRate(selectedMaster, SERVICES_OPTIONS[0]) : 0;
     setServices([...services, { id: Date.now(), title: SERVICES_OPTIONS[0], amount: '', rate: defaultRate }]);
   };
 
@@ -153,9 +159,15 @@ export default function AddJournalModal({ isOpen, onClose, editData }) {
               {services.map((srv, index) => (
                 <div key={srv.id} className="flex gap-2 items-start relative bg-slate-50 p-3 rounded-2xl border border-slate-100">
                   <div className="flex-1 space-y-2">
-                    <select 
-                      value={srv.title} 
-                      onChange={(e) => updateService(srv.id, 'title', e.target.value)}
+                    <select
+                      value={srv.title}
+                      onChange={(e) => {
+                        const newTitle = e.target.value;
+                        const selectedMaster = masters.find(m => m.name === masterName);
+                        const newRate = getRate(selectedMaster, newTitle);
+                        updateService(srv.id, 'title', newTitle);
+                        updateService(srv.id, 'rate', newRate);
+                      }}
                       className="w-full bg-white border border-slate-100 text-sm font-bold rounded-xl px-3 py-2.5 focus:outline-none focus:border-purple-300"
                     >
                       {SERVICES_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}

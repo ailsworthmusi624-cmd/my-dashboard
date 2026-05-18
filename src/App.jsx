@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  LayoutDashboard, PieChart, Calendar as CalendarIcon, 
+import {
+  LayoutDashboard, PieChart, Calendar as CalendarIcon,
   Calculator, Target, Users, Plus, Wallet, Scissors, Receipt, PieChart as PieChartIcon,
-  Cloud, CloudOff, Loader2
+  Cloud, CloudOff, Loader2, Sparkles
 } from 'lucide-react';
 import useAppStore, { initFirebaseSync } from './store/useAppStore';
 import Calculators from './workspaces/personal/tabs/Calculators';
@@ -176,6 +176,17 @@ function App() {
             <h1 className="text-xl font-black tracking-tight text-slate-900">Freedom.</h1>
           </div>
           <WorkspaceSwitcher />
+          {/* AI поиск в header */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 relative">
+              <input
+                placeholder="Спросить AI..."
+                className="w-full bg-slate-100 rounded-xl px-4 py-2 text-sm outline-none pl-8"
+                onFocus={() => setActiveTab('dashboard')}
+              />
+              <Sparkles size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-purple-400" />
+            </div>
+          </div>
         </header>
 
         {/* PAGE CONTENT */}

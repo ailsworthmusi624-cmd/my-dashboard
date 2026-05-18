@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { Users, Calculator, Calendar, Scissors, Banknote, Plus, ChevronDown, ChevronUp, Edit3, Trash2 } from 'lucide-react';
+
+const SERVICES_LIST = ['Маникюр', 'Педикюр', 'Стрижка', 'Окрашивание', 'Брови', 'Прочее'];
 import useAppStore from '../../../store/useAppStore';
 import { fmt, fmtDate } from '../../../shared/utils/format';
-import AiSearchBar from '../../../shared/components/AiSearchBar';
-
 export default function Masters() {
   const masters = useAppStore(s => s.masters ?? []);
   const journal = useAppStore(s => s.journal ?? []);
@@ -90,14 +90,14 @@ export default function Masters() {
 
   const ProgressBar = ({ label, current, target, stats, suffix = '' }) => (
     <div className="space-y-1">
-      <div className="flex justify-between text-[10px] font-black uppercase tracking-tight text-slate-400">
+      <div className="flex justify-between text-[10px] font-black uppercase tracking-tight text-white/60">
         <span>{label}</span>
         <span className={stats.color.replace('bg-', 'text-')}>{stats.val}%</span>
       </div>
-      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+      <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
         <div className={`h-full ${stats.color} transition-all duration-700`} style={{ width: `${Math.min(100, stats.val)}%` }} />
       </div>
-      <div className="flex justify-between text-[9px] font-bold text-slate-500">
+      <div className="flex justify-between text-[9px] font-bold text-white/60">
         <span>{current}{suffix}</span>
         <span>цель: {target}{suffix}</span>
       </div>
@@ -112,8 +112,7 @@ export default function Masters() {
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300">
-      <AiSearchBar />
-      
+
       {/* ─── ШАПКА ФИЛЬТРА ДАТ ─── */}
       <div className="bg-white/80 backdrop-blur-xl p-4 md:p-6 rounded-[24px] md:rounded-[32px] border border-white/20 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -155,45 +154,45 @@ export default function Masters() {
         {mastersStats.map(master => {
           const isExpanded = expandedId === master.id;
           return (
-            <div key={master.id} className="bg-white/60 backdrop-blur-xl rounded-[32px] border border-white/80 shadow-sm transition-all overflow-hidden">
+            <div key={master.id} className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-[32px] border border-white/10 shadow-sm transition-all overflow-hidden">
               {/* Основная карточка */}
-              <div className="p-6 cursor-pointer hover:bg-slate-50/50 transition-colors" onClick={() => setExpandedId(isExpanded ? null : master.id)}>
+              <div className="p-6 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => setExpandedId(isExpanded ? null : master.id)}>
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-[20px] flex items-center justify-center font-black text-xl shadow-inner">{master.name.charAt(0)}</div>
-                    <div><h3 className="font-black text-lg text-slate-900 flex items-center gap-2">{master.name} {isExpanded ? <ChevronUp size={16} className="text-slate-400"/> : <ChevronDown size={16} className="text-slate-400"/>}</h3><p className="text-xs font-medium text-slate-500">{master.role}</p></div>
+                    <div className="w-14 h-14 bg-white/10 text-white rounded-[20px] flex items-center justify-center font-black text-xl shadow-inner">{master.name.charAt(0)}</div>
+                    <div><h3 className="font-black text-lg text-white flex items-center gap-2">{master.name} {isExpanded ? <ChevronUp size={16} className="text-white/40"/> : <ChevronDown size={16} className="text-white/40"/>}</h3><p className="text-xs font-medium text-white/60">{master.role}</p></div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Выручка</div>
-                    <div className="text-xl font-black text-emerald-600">{fmt(master.grossRevenue)}</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-white/60 mb-1">Выручка</div>
+                    <div className="text-xl font-black text-emerald-400">{fmt(master.grossRevenue)}</div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 mb-6">
                   <ProgressBar label="Выручка" current={fmt(master.grossRevenue)} target={fmt(master.plan)} stats={master.stats.revenue} />
-                  <div className="flex justify-between items-center bg-white/30 p-3 rounded-2xl border border-white/80 mt-2">
-                    <div><div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Клиенты</div><div className="font-bold text-slate-900 text-sm">{master.clientCount} чел.</div></div>
-                    <div className="text-right"><div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Средний чек</div><div className="font-bold text-slate-900 text-sm">{Math.round(master.stats.currentAvgCheck)} ₽</div></div>
+                  <div className="flex justify-between items-center bg-white/10 p-3 rounded-2xl border border-white/20 mt-2">
+                    <div><div className="text-[9px] font-black uppercase tracking-widest text-white/60 mb-1">Клиенты</div><div className="font-bold text-white text-sm">{master.clientCount} чел.</div></div>
+                    <div className="text-right"><div className="text-[9px] font-black uppercase tracking-widest text-white/60 mb-1">Средний чек</div><div className="font-bold text-white text-sm">{Math.round(master.stats.currentAvgCheck)} ₽</div></div>
                   </div>
                 </div>
 
-                <div className="flex gap-2 text-xs border-t border-slate-50 pt-4">
-                  <div className="bg-purple-50 px-3 py-1.5 rounded-xl font-bold text-purple-700 flex items-center gap-1.5"><Banknote size={14}/> ЗП: {fmt(master.toPay)}</div>
+                <div className="flex gap-2 text-xs border-t border-white/10 pt-4">
+                  <div className="bg-white/10 border border-white/20 px-3 py-1.5 rounded-xl font-bold text-white flex items-center gap-1.5"><Banknote size={14}/> ЗП: {fmt(master.toPay)}</div>
                 </div>
               </div>
 
               {/* Раскрывающаяся часть */}
               {isExpanded && (
-                <div className="p-6 pt-0 border-t border-slate-50 bg-slate-50/30 space-y-4">
+                <div className="p-6 pt-0 border-t border-white/10 bg-black/20 space-y-4">
                   {/* Настройки мастера */}
-                  <div className="grid grid-cols-2 gap-4 bg-white/60 backdrop-blur-xl p-4 rounded-2xl border border-white/80">
+                  <div className="grid grid-cols-2 gap-4 bg-white/10 p-4 rounded-2xl border border-white/20">
                     <div>
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1"><Edit3 size={10}/> Ставка (%)</label>
-                      <input type="number" value={master.rate1 || ''} onChange={e => updateMaster(master.id, { rate1: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 text-slate-900 font-mono font-bold rounded-xl px-3 py-2 outline-none focus:border-purple-300" />
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/60 mb-1 flex items-center gap-1"><Edit3 size={10}/> Ставка (%)</label>
+                      <input type="number" value={master.rate1 || ''} onChange={e => updateMaster(master.id, { rate1: Number(e.target.value) })} className="w-full bg-white/10 border border-white/20 text-white font-mono font-bold rounded-xl px-3 py-2 outline-none focus:border-purple-400" />
                     </div>
                     <div>
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1"><Edit3 size={10}/> План (₽)</label>
-                      <input type="number" value={master.plan || ''} onChange={e => updateMaster(master.id, { plan: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-100 text-slate-900 font-mono font-bold rounded-xl px-3 py-2 outline-none focus:border-purple-300" />
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/60 mb-1 flex items-center gap-1"><Edit3 size={10}/> План (₽)</label>
+                      <input type="number" value={master.plan || ''} onChange={e => updateMaster(master.id, { plan: Number(e.target.value) })} className="w-full bg-white/10 border border-white/20 text-white font-mono font-bold rounded-xl px-3 py-2 outline-none focus:border-purple-400" />
                     </div>
                   </div>
 
@@ -209,6 +208,53 @@ export default function Masters() {
                       <button onClick={() => handleGiveAdvance(master.id)} className="bg-white text-purple-700 px-4 py-3 rounded-xl font-black text-sm shadow-sm hover:scale-105 transition-transform">Выдать</button>
                     </div>
                   </div>
+
+                  {/* Ставки по услугам */}
+                  <div className="mt-4">
+                    <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-2">Ставки по услугам</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {SERVICES_LIST.map(svc => (
+                        <div key={svc} className="flex items-center justify-between bg-white/10 rounded-xl px-3 py-2">
+                          <span className="text-xs text-white/70">{svc}</span>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              value={master.rates?.[svc] ?? master.rate1 ?? 40}
+                              onChange={e => updateMaster(master.id, {
+                                rates: { ...(master.rates || {}), [svc]: Number(e.target.value) }
+                              })}
+                              className="w-12 bg-white/20 text-white text-xs text-center rounded-lg px-1 py-1 outline-none"
+                            />
+                            <span className="text-white/50 text-xs">%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* История выплат */}
+                  {(() => {
+                    const masterPayHistory = advances
+                      .filter(a => a.masterId === master.id || a.masterName === master.name)
+                      .sort((a, b) => new Date(b.date) - new Date(a.date))
+                      .slice(0, 10);
+                    return masterPayHistory.length > 0 ? (
+                      <div className="mt-4">
+                        <p className="text-xs font-bold text-white/50 uppercase tracking-widest mb-2">История выплат</p>
+                        <div className="space-y-2">
+                          {masterPayHistory.map(pay => (
+                            <div key={pay.id} className="flex items-center justify-between bg-white/10 rounded-xl px-3 py-2">
+                              <div>
+                                <span className="text-xs font-bold text-white">{pay.type || 'Аванс'}</span>
+                                <span className="text-xs text-white/50 ml-2">{fmtDate(pay.date)}</span>
+                              </div>
+                              <span className="text-sm font-black text-emerald-400">{fmt(pay.amount)} ₽</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
 
                   {/* Удаление */}
                   <div className="flex justify-end pt-2">
