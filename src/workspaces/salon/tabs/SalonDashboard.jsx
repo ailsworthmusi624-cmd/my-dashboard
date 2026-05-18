@@ -2,8 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { AlertCircle, Target, Users, Banknote, Calendar, Wallet, X } from 'lucide-react';
 import useAppStore from '../../../store/useAppStore';
 import { fmt } from '../../../shared/utils/format';
-import AiSearchBar from '../../../shared/components/AiSearchBar';
-
 export default function SalonDashboard() {
   const journal = useAppStore(s => s.journal ?? []);
   const expenses = useAppStore(s => s.expenses ?? []);
@@ -104,9 +102,37 @@ export default function SalonDashboard() {
       return m;
     }).sort((a,b) => b.gross - a.gross);
 
+    // Данные для графика по дням
+    const dailyData = (() => {
+      const days = {};
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const key = d.toISOString().split('T')[0];
+        days[key] = { date: key, revenue: 0, fixedCosts: 0, variableCosts: 0, profit: 0 };
+      }
+      const totalDayCount = Math.max(1, Object.keys(days).length);
+      const fixedPerDay = fExpenses.reduce((s, e) => s + (Number(e.amount) || 0), 0) / totalDayCount;
+      fJournal.forEach(entry => {
+        if (!days[entry.date]) return;
+        const entryRev = (entry.services || []).reduce((s, sv) => s + (Number(sv.amount) || 0), 0)
+          + (entry.goods || []).reduce((s, g) => s + (Number(g.amount) || 0), 0);
+        const entryPayroll = (entry.services || []).reduce((s, sv) => s + (Number(sv.amount) || 0) * (Number(sv.rate) || 0) / 100, 0);
+        const commission = entry.paymentMethod === 'card' ? entryRev * 0.029 : entry.paymentMethod === 'sbp' ? entryRev * 0.007 : 0;
+        days[entry.date].revenue += entryRev;
+        days[entry.date].variableCosts += entryPayroll + commission;
+      });
+      Object.values(days).forEach(d => {
+        d.fixedCosts = fixedPerDay;
+        d.profit = Math.max(0, d.revenue - d.fixedCosts - d.variableCosts);
+        if (d.revenue === 0) { d.fixedCosts = fixedPerDay; d.variableCosts = 0; d.profit = 0; }
+      });
+      return Object.values(days).slice(-30);
+    })();
+
     return {
       revenue, netProfit, margin, breakEven, safetyMargin, planTotal, planProgress, runRate,
-      clientsCount, avgCheck, mastersList, totalToPay,
+      clientsCount, avgCheck, mastersList, totalToPay, bankCommission, dailyData,
       taxReserveTarget: revenue * 0.03, insuranceFund: netProfit > 0 ? netProfit * 0.1 : 0
     };
   }, [journal, expenses, masters, advances, globalPlans, startDate, endDate]);
@@ -148,10 +174,9 @@ export default function SalonDashboard() {
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300 pb-10">
-      <AiSearchBar />
-      
+
       {/* ─── ШАПКА ─── */}
-      <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-[16px] flex items-center justify-center shadow-lg shadow-slate-300/50 shrink-0">
             <Target size={24} />
@@ -161,10 +186,20 @@ export default function SalonDashboard() {
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Управление салоном</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-white/60 backdrop-blur-xl border border-white/80 rounded-2xl p-1.5 shadow-sm">
-          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
-          <span className="text-slate-300 font-bold">—</span>
-          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
+        <div className="flex flex-wrap items-center gap-3">
+          {/* ─── SAFE WITHDRAWAL compact ─── */}
+          <div className="flex items-center gap-3 bg-emerald-500 rounded-2xl px-5 py-3 text-white shadow-lg shadow-emerald-100">
+            <Wallet size={18} className="text-emerald-100 shrink-0" />
+            <div>
+              <div className="text-[9px] font-black uppercase tracking-widest text-emerald-100">Безопасно к выводу</div>
+              <div className="font-mono text-lg font-black leading-tight">{fmt(safeWithdrawal)} ₽</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-white/60 backdrop-blur-xl border border-white/80 rounded-2xl p-1.5 shadow-sm">
+            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
+            <span className="text-slate-300 font-bold">—</span>
+            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
+          </div>
         </div>
       </div>
 
@@ -180,31 +215,60 @@ export default function SalonDashboard() {
         </div>
       )}
 
-      {/* ─── SAFE WITHDRAWAL ─── */}
-      <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-[32px] p-8 text-white shadow-[0_10px_40px_rgba(16,185,129,0.3)] relative overflow-hidden">
-        <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-400 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
-        <div className="flex justify-between items-start mb-2 relative z-10">
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-widest text-emerald-100 mb-1">Безопасно к выводу сегодня</div>
-            <div className="font-mono text-4xl md:text-6xl font-black tracking-tighter mt-1 break-words">{fmt(safeWithdrawal)}</div>
-          </div>
-          <div className="w-12 h-12 bg-white/20 rounded-[16px] flex items-center justify-center backdrop-blur-md">
-            <Wallet size={24} className="text-white" />
-          </div>
-        </div>
-        <p className="text-xs font-medium text-emerald-100 relative z-10">Чистая прибыль за вычетом резервов и фондов (Дивиденды)</p>
-      </div>
-
       {/* ─── СЕТКА KPI ─── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <KpiBox label1="Выручка (факт)" value1={fmt(metrics.revenue)} sub1={`Прогноз: ${fmt(metrics.runRate)}`} label2={`План: ${fmt(metrics.planTotal)}`} value2={`${metrics.planProgress.toFixed(1)}%`} highlight onClick={() => setIsRevenueTrendOpen(true)} />
-        <KpiBox label1="Чистая прибыль" value1={fmt(metrics.netProfit)} label2="Маржинальность" value2={`${metrics.margin.toFixed(1)}%`} />
+        <KpiBox label1="Чистая прибыль" value1={fmt(metrics.netProfit)} sub1={`Комиссии банка: −${fmt(metrics.bankCommission)}`} label2="Маржинальность" value2={`${metrics.margin.toFixed(1)}%`} />
         <KpiBox label1="Средний чек" value1={fmt(metrics.avgCheck)} label2="Клиентов за месяц" value2={`${metrics.clientsCount} чел.`} />
         <KpiBox label1="Точка безубыт." value1={fmt(metrics.breakEven)} label2="Запас прочности" value2={`${metrics.safetyMargin.toFixed(1)}%`} />
       </div>
       
+      {/* ─── ГРАФИК ПО ДНЯМ ─── */}
+      {metrics.dailyData?.length > 0 && (
+        <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-black text-lg text-slate-900">Доходы и расходы по дням</h3>
+            <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest">
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-rose-400 inline-block"/>Пост. расходы</span>
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block"/>Перем. расходы</span>
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-400 inline-block"/>Прибыль</span>
+            </div>
+          </div>
+          <div className="flex items-end gap-1 h-40 overflow-x-auto pb-2">
+            {metrics.dailyData.map(day => {
+              const total = day.fixedCosts + day.variableCosts + day.profit;
+              if (total === 0) return (
+                <div key={day.date} className="flex flex-col items-center gap-1 min-w-[28px] flex-1">
+                  <div className="w-full h-1 bg-slate-100 rounded-full" />
+                  <span className="text-[8px] text-slate-300 font-bold">{day.date.slice(8)}</span>
+                </div>
+              );
+              const fixedPct = (day.fixedCosts / total) * 100;
+              const varPct = (day.variableCosts / total) * 100;
+              const profitPct = (day.profit / total) * 100;
+              return (
+                <div key={day.date} className="flex flex-col items-center gap-1 min-w-[28px] flex-1 group relative">
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] rounded-lg px-2 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 font-bold">
+                    <div>Выручка: {fmt(day.revenue)} ₽</div>
+                    <div className="text-rose-300">Пост: −{fmt(day.fixedCosts)} ₽</div>
+                    <div className="text-amber-300">Перем: −{fmt(day.variableCosts)} ₽</div>
+                    <div className="text-emerald-300">Прибыль: {fmt(day.profit)} ₽</div>
+                  </div>
+                  <div className="w-full flex flex-col rounded-lg overflow-hidden" style={{height: '120px'}}>
+                    <div className="w-full bg-emerald-400" style={{flex: profitPct}} />
+                    <div className="w-full bg-amber-400" style={{flex: varPct}} />
+                    <div className="w-full bg-rose-400" style={{flex: fixedPct}} />
+                  </div>
+                  <span className="text-[8px] text-slate-400 font-bold">{day.date.slice(8)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* ─── МАСТЕРА И ФОТ ─── */}
         <div className="lg:col-span-2 bg-white/70 backdrop-blur-2xl rounded-[32px] border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
           <h3 className="font-black text-xl text-slate-900 mb-6 flex items-center gap-2"><Users className="text-indigo-500" size={20}/> Эффективность мастеров</h3>
