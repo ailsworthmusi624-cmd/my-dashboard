@@ -1,7 +1,6 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
 const ALLOWED_USER_ID = 474602015;
-const MASTERS_LIST = ['Анна', 'Юля', 'Оля', 'Елена', 'Вика'];
+const MASTERS_LIST = ['Анна', 'Анна', 'Юля', 'Оля', 'Елена', 'Вика'];
+const MASTERS = ['Анна', 'Юля', 'Оля', 'Елена', 'Вика'];
 
 const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1/projects/dashboard-27927/databases/(default)/documents';
 const DOC_PATH = 'artifacts/dashboard-27927/public/data/appState/main';
@@ -30,7 +29,6 @@ async function makeJWT(serviceAccount) {
   const payloadB64 = base64url(enc.encode(JSON.stringify(payload)));
   const sigInput = `${headerB64}.${payloadB64}`;
 
-  // Import RSA private key
   const pemBody = serviceAccount.private_key
     .replace(/-----BEGIN PRIVATE KEY-----/, '')
     .replace(/-----END PRIVATE KEY-----/, '')
@@ -115,28 +113,85 @@ async function fsPatch(token, data) {
   });
 }
 
-// ── Gemini parser ──
+// ── Текстовый парсер (без AI) ──
 
-async function parseWithGemini(text, geminiModel) {
-  const prompt = `Ты парсер для салона красоты. Верни ТОЛЬКО валидный JSON без markdown.
+const SERVICES_MAP = {
+  'маникюр': 'Маникюр', 'педикюр': 'Педикюр', 'стрижка': 'Стрижка',
+  'окрашивание': 'Окрашивание', 'брови': 'Брови', 'прочее': 'Прочее'
+};
+const EXPENSE_CATEGORIES = ['Аренда', 'ЖКУ', 'Материалы', 'Реклама', 'Зарплата', 'Прочее'];
+const PAYMENT_MAP = {
+  'нал': 'cash', 'наличные': 'cash', 'наличка': 'cash',
+  'карта': 'card', 'карту': 'card', 'безнал': 'card',
+  'сбп': 'sbp', 'перевод': 'sbp', 'qr': 'sbp'
+};
 
-Мастера: ${MASTERS_LIST.join(', ')}
-Услуги: Маникюр, Педикюр, Стрижка, Окрашивание, Брови, Прочее
-Оплата: cash (нал), card (карта/безнал), sbp (сбп/перевод)
+function extractNumber(str) {
+  const m = str.match(/\d[\d\s]*/);
+  if (!m) return null;
+  return parseInt(m[0].replace(/\s/g, ''), 10);
+}
 
-Сообщение: "${text}"
+function parseMessage(text) {
+  const low = text.toLowerCase().trim();
+  const words = low.split(/[\s,]+/);
 
-Варианты ответа:
-{"type":"journal","master":"Имя","services":[{"title":"Услуга","amount":1000}],"payment":"cash"}
-{"type":"expense","category":"Аренда","amount":50000}
-{"type":"advance","master":"Имя","amount":5000,"label":"Аванс"}
-{"type":"error","msg":"причина"}
+  // Определяем способ оплаты
+  let payment = 'cash';
+  for (const [key, val] of Object.entries(PAYMENT_MAP)) {
+    if (low.includes(key)) { payment = val; break; }
+  }
 
-Правила: имя мастера точно из списка, amount число, payment по умолчанию cash.`;
+  // Аванс / зарплата
+  const isAdvance = low.includes('аванс');
+  const isSalary = low.includes('зп') || low.includes('зарплата') || low.includes(' зп ') || low.startsWith('зп ');
+  if (isAdvance || isSalary) {
+    const master = MASTERS.find(m => low.includes(m.toLowerCase()));
+    const amount = extractNumber(text);
+    if (master && amount) {
+      return { type: 'advance', master, amount, label: isSalary ? 'ЗП' : 'Аванс' };
+    }
+  }
 
-  const result = await geminiModel.generateContent(prompt);
-  const raw = result.response.text().trim().replace(/```json|```/g, '').trim();
-  return JSON.parse(raw);
+  // Расходы по категории
+  for (const cat of EXPENSE_CATEGORIES) {
+    if (low.includes(cat.toLowerCase())) {
+      const amount = extractNumber(text);
+      if (amount) return { type: 'expense', category: cat, amount };
+    }
+  }
+  // Аренда как частный случай расхода (частое слово)
+  if (low.includes('аренд')) {
+    const amount = extractNumber(text);
+    if (amount) return { type: 'expense', category: 'Аренда', amount };
+  }
+
+  // Журнал: мастер + услуга(и) + суммы
+  const master = MASTERS.find(m => low.includes(m.toLowerCase()));
+  if (master) {
+    const services = [];
+    // Ищем пары: услуга + число после неё
+    const servicePattern = new RegExp(`(${Object.keys(SERVICES_MAP).join('|')})[^\\d]*(\\d[\\d\\s]*)`, 'gi');
+    let match;
+    while ((match = servicePattern.exec(text)) !== null) {
+      const title = SERVICES_MAP[match[1].toLowerCase()];
+      const amount = parseInt(match[2].replace(/\s/g, ''), 10);
+      if (title && amount) services.push({ title, amount });
+    }
+    // Если не нашли пары — пробуем: одна услуга + одно число в тексте
+    if (services.length === 0) {
+      const serviceKey = Object.keys(SERVICES_MAP).find(k => low.includes(k));
+      const amount = extractNumber(text);
+      if (serviceKey && amount) {
+        services.push({ title: SERVICES_MAP[serviceKey], amount });
+      }
+    }
+    if (services.length > 0) {
+      return { type: 'journal', master, services, payment };
+    }
+  }
+
+  return { type: 'error', msg: `Не распознано. Формат:\n• Юля маникюр 2000 нал\n• Аня маникюр 1800 педикюр 2500 сбп\n• Аренда 50000\n• Юля аванс 5000` };
 }
 
 // ── Bot logic ──
@@ -195,7 +250,7 @@ async function sendMessage(chat_id, text, botToken) {
   });
 }
 
-async function handleUpdate(update, token, geminiModel, botToken) {
+async function handleUpdate(update, token, botToken) {
   const msg = update.message;
   if (!msg?.text) return;
   if (msg.from.id !== ALLOWED_USER_ID) return;
@@ -204,12 +259,12 @@ async function handleUpdate(update, token, geminiModel, botToken) {
   const chatId = msg.chat.id;
 
   if (text === '/start') {
-    await sendMessage(chatId, `👋 Freedom Bot!\n\nПримеры:\n• Юля маникюр 2000 нал\n• Аня маникюр 1800 педикюр 2500 сбп\n• Аренда 50000\n• Юля аванс 5000`, botToken);
+    await sendMessage(chatId, `👋 Freedom Bot!\n\nФормат сообщений:\n• Юля маникюр 2000 нал\n• Аня маникюр 1800 педикюр 2500 сбп\n• Аренда 50000\n• Юля аванс 5000\n\nМастера: ${MASTERS.join(', ')}\nОплата: нал / карта / сбп`, botToken);
     return;
   }
 
   try {
-    const parsed = await parseWithGemini(text, geminiModel);
+    const parsed = parseMessage(text);
     let reply;
     if (parsed.type === 'journal') reply = await writeJournal(parsed, token);
     else if (parsed.type === 'expense') reply = await writeExpense(parsed, token);
@@ -228,17 +283,14 @@ export default {
   async fetch(request, env) {
     if (request.method !== 'POST') return new Response('Freedom Bot OK');
 
-    const serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
-    const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
-    const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-
-    const accessToken = await getAccessToken(serviceAccount);
-
     try {
+      const stripBOM = s => s.replace(/^﻿/, '').trim();
+      const serviceAccount = JSON.parse(stripBOM(env.FIREBASE_SERVICE_ACCOUNT));
+      const accessToken = await getAccessToken(serviceAccount);
       const update = await request.json();
-      await handleUpdate(update, accessToken, geminiModel, env.BOT_TOKEN);
+      await handleUpdate(update, accessToken, stripBOM(env.BOT_TOKEN));
     } catch (e) {
-      console.error(e);
+      console.error('Worker error:', e.message, e.stack);
     }
 
     return new Response('ok');
