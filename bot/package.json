@@ -1,0 +1,12 @@
+{
+  "name": "freedom-bot",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "node-fetch": "^3.3.2",
+    "undici": "^8.3.0"
+  }
+}

@@ -136,7 +136,7 @@ export default function SalonDashboard() {
     <div onClick={onClick} className={`bg-white/70 backdrop-blur-2xl p-6 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 flex flex-col justify-between h-full hover:-translate-y-1 transition-transform duration-300 ${onClick ? 'cursor-pointer' : ''}`}>
       <div className="mb-4">
         <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">{label1}</div>
-        <div className={`font-mono text-3xl md:text-4xl font-black ${highlight ? 'text-emerald-500' : 'text-slate-900'}`}>{value1}</div>
+        <div className={`font-mono text-2xl md:text-4xl font-black break-words ${highlight ? 'text-emerald-500' : 'text-slate-900'}`}>{value1}</div>
         {sub1 && <div className="text-[9px] font-bold text-slate-400 mt-1">{sub1}</div>}
       </div>
       <div>
@@ -186,7 +186,7 @@ export default function SalonDashboard() {
         <div className="flex justify-between items-start mb-2 relative z-10">
           <div>
             <div className="text-[10px] font-black uppercase tracking-widest text-emerald-100 mb-1">Безопасно к выводу сегодня</div>
-            <div className="font-mono text-5xl md:text-6xl font-black tracking-tighter mt-1">{fmt(safeWithdrawal)}</div>
+            <div className="font-mono text-4xl md:text-6xl font-black tracking-tighter mt-1 break-words">{fmt(safeWithdrawal)}</div>
           </div>
           <div className="w-12 h-12 bg-white/20 rounded-[16px] flex items-center justify-center backdrop-blur-md">
             <Wallet size={24} className="text-white" />

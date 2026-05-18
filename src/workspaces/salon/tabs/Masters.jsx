@@ -204,9 +204,9 @@ export default function Masters() {
                     </div>
                     <div className="border-t border-purple-500 pt-4 mb-4 flex justify-between items-center"><div className="text-xs font-black uppercase tracking-widest text-purple-100">К выплате сейчас</div><div className="text-2xl font-black text-white">{fmt(master.toPay)}</div></div>
                     
-                    <div className="flex gap-2">
-                      <input type="number" placeholder="Сумма аванса ₽" value={advanceAmount} onChange={e => setAdvanceAmount(e.target.value)} className="flex-1 bg-white/10 border border-white/20 text-white placeholder:text-purple-300 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 ring-white/30" />
-                      <button onClick={() => handleGiveAdvance(master.id)} className="bg-white text-purple-700 px-4 rounded-xl font-black text-sm shadow-sm hover:scale-105 transition-transform">Выдать</button>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input type="number" placeholder="Сумма аванса ₽" value={advanceAmount} onChange={e => setAdvanceAmount(e.target.value)} className="w-full bg-white/10 border border-white/20 text-white placeholder:text-purple-300 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 ring-white/30" />
+                      <button onClick={() => handleGiveAdvance(master.id)} className="bg-white text-purple-700 px-4 py-3 rounded-xl font-black text-sm shadow-sm hover:scale-105 transition-transform">Выдать</button>
                     </div>
                   </div>
 
