@@ -347,9 +347,9 @@ function App() {
         </main>
 
         {/* ─── MOBILE BOTTOM TAB BAR ─── */}
-        <nav className="lg:hidden fixed bottom-3 left-3 right-3 bg-[#0D1117] z-50 px-4 pb-[env(safe-area-inset-bottom)] flex justify-around items-center h-[64px] rounded-[28px] shadow-2xl">
+        <nav className="lg:hidden fixed bottom-3 left-3 right-3 bg-white/20 backdrop-blur-2xl border border-white/30 z-50 px-4 pb-[env(safe-area-inset-bottom)] flex justify-around items-center h-[64px] rounded-[28px] shadow-2xl">
           {currentTabs.map(tab => (
-            <button key={tab.id} onClick={() => navigate(workspace, tab.id)} className={`flex flex-col items-center justify-center flex-1 gap-1.5 transition-colors ${activeTab === tab.id ? 'text-[#2A9D8F]' : 'text-white/40'}`}>
+            <button key={tab.id} onClick={() => navigate(workspace, tab.id)} className={`flex flex-col items-center justify-center flex-1 gap-1.5 transition-colors ${activeTab === tab.id ? 'text-[#2A9D8F]' : 'text-slate-600'}`}>
               {tab.icon}
               <span className="text-[9px] font-black truncate text-center">{tab.label}</span>
             </button>

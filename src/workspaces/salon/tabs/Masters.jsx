@@ -111,7 +111,7 @@ export default function Masters() {
   };
 
   return (
-    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300 min-h-screen bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] rounded-3xl p-4 -m-4">
 
       {/* ─── ШАПКА ФИЛЬТРА ДАТ ─── */}
       <div className="bg-white/80 backdrop-blur-xl p-4 md:p-6 rounded-[24px] md:rounded-[32px] border border-white/20 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -154,7 +154,7 @@ export default function Masters() {
         {mastersStats.map(master => {
           const isExpanded = expandedId === master.id;
           return (
-            <div key={master.id} className="bg-[#0D1117] rounded-[32px] border border-white/10 shadow-sm transition-all overflow-hidden">
+            <div key={master.id} className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-[32px] shadow-sm transition-all overflow-hidden">
               {/* Основная карточка */}
               <div className="p-6 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => setExpandedId(isExpanded ? null : master.id)}>
                 <div className="flex justify-between items-start mb-4">
@@ -183,29 +183,29 @@ export default function Masters() {
 
               {/* Раскрывающаяся часть */}
               {isExpanded && (
-                <div className="p-6 pt-0 border-t border-white/10 flex flex-col gap-4 bg-[#0D1117]">
+                <div className="p-6 pt-0 border-t border-white/10 flex flex-col gap-4 bg-black/20 backdrop-blur-xl">
                   {/* Настройки мастера */}
                   <div className="grid grid-cols-2 gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/20">
                     <div>
                       <label className="text-[9px] font-black uppercase tracking-widest text-white/60 mb-1 flex items-center gap-1"><Edit3 size={10}/> Ставка (%)</label>
-                      <input type="number" value={master.rate1 || ''} onChange={e => updateMaster(master.id, { rate1: Number(e.target.value) })} className="w-full bg-white/10 border border-white/20 text-white font-mono font-bold rounded-xl px-3 py-2 outline-none focus:border-purple-400" />
+                      <input type="number" value={master.rate1 || ''} onChange={e => updateMaster(master.id, { rate1: Number(e.target.value) })} className="w-full bg-white/15 backdrop-blur-sm border border-white/30 text-white font-mono font-bold rounded-xl px-3 py-2 focus:bg-white/25 focus:border-white/50 outline-none transition-all" />
                     </div>
                     <div>
                       <label className="text-[9px] font-black uppercase tracking-widest text-white/60 mb-1 flex items-center gap-1"><Edit3 size={10}/> План (₽)</label>
-                      <input type="number" value={master.plan || ''} onChange={e => updateMaster(master.id, { plan: Number(e.target.value) })} className="w-full bg-white/10 border border-white/20 text-white font-mono font-bold rounded-xl px-3 py-2 outline-none focus:border-purple-400" />
+                      <input type="number" value={master.plan || ''} onChange={e => updateMaster(master.id, { plan: Number(e.target.value) })} className="w-full bg-white/15 backdrop-blur-sm border border-white/30 text-white font-mono font-bold rounded-xl px-3 py-2 focus:bg-white/25 focus:border-white/50 outline-none transition-all" />
                     </div>
                   </div>
 
-                  <div className="bg-purple-600 text-white rounded-[24px] p-5 shadow-lg">
+                  <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-[24px] p-5">
                     <div className="flex justify-between items-center mb-4">
-                      <div><div className="text-[10px] font-black uppercase tracking-widest text-purple-200">Начислено</div><div className="font-black text-lg">{fmt(master.totalSalary)}</div></div>
-                      <div className="text-right"><div className="text-[10px] font-black uppercase tracking-widest text-purple-200">Выдано авансов</div><div className="font-black text-lg">{fmt(master.advancesSum)}</div></div>
+                      <div><div className="text-[10px] font-black uppercase tracking-widest text-white/60">Начислено</div><div className="font-black text-lg">{fmt(master.totalSalary)}</div></div>
+                      <div className="text-right"><div className="text-[10px] font-black uppercase tracking-widest text-white/60">Выдано авансов</div><div className="font-black text-lg">{fmt(master.advancesSum)}</div></div>
                     </div>
-                    <div className="border-t border-purple-500 pt-4 mb-4 flex justify-between items-center"><div className="text-xs font-black uppercase tracking-widest text-purple-100">К выплате сейчас</div><div className="text-2xl font-black text-white">{fmt(master.toPay)}</div></div>
-                    
+                    <div className="border-t border-white/20 pt-4 mb-4 flex justify-between items-center"><div className="text-xs font-black uppercase tracking-widest text-white/70">К выплате сейчас</div><div className="text-2xl font-black text-white">{fmt(master.toPay)}</div></div>
+
                     <div className="flex flex-col sm:flex-row gap-2">
-                      <input type="number" placeholder="Сумма аванса ₽" value={advanceAmount} onChange={e => setAdvanceAmount(e.target.value)} className="w-full bg-white/10 border border-white/20 text-white placeholder:text-purple-300 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 ring-white/30" />
-                      <button onClick={() => handleGiveAdvance(master.id)} className="bg-white text-purple-700 px-4 py-3 rounded-xl font-black text-sm shadow-sm hover:scale-105 transition-transform">Выдать</button>
+                      <input type="number" placeholder="Сумма аванса ₽" value={advanceAmount} onChange={e => setAdvanceAmount(e.target.value)} className="w-full bg-white/10 border border-white/20 text-white placeholder:text-white/40 text-sm font-bold rounded-xl px-4 py-3 outline-none focus:ring-2 ring-white/30" />
+                      <button onClick={() => handleGiveAdvance(master.id)} className="bg-[#2A9D8F] text-white backdrop-blur-sm px-4 py-3 rounded-xl font-black text-sm shadow-sm hover:scale-105 transition-transform">Выдать</button>
                     </div>
                   </div>
 
