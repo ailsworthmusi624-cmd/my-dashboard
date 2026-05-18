@@ -1,110 +1,94 @@
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { ProxyAgent, setGlobalDispatcher } from 'undici';
+import { ProxyAgent, fetch as undiciFetch } from 'undici';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const PROXY = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
-if (PROXY) setGlobalDispatcher(new ProxyAgent(PROXY));
+const proxyAgent = PROXY ? new ProxyAgent(PROXY) : undefined;
+
+function fetch(url, opts = {}) {
+  return undiciFetch(url, proxyAgent ? { ...opts, dispatcher: proxyAgent } : opts);
+}
+
+// Gemini SDK использует globalThis.fetch — патчим чтобы он тоже шёл через прокси
+if (proxyAgent) globalThis.fetch = fetch;
+
 const BOT_TOKEN = '8809380077:AAGwvj3HN8cCJGOwQcHigUhtGTq8g1ga9Pw';
 const ALLOWED_USER_ID = 474602015;
 const API = `https://api.telegram.org/bot${BOT_TOKEN}`;
+
+const GEMINI_API_KEY = 'AIzaSyCyhji5FcNjl8Xlj2s255ZGUl6gB9pBlJg';
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
 initializeApp({ credential: cert('./dashboard-27927-firebase-adminsdk-fbsvc-fb67b6846e.json') });
 const db = getFirestore();
 const STATE_REF = db.doc('artifacts/dashboard-27927/public/data/appState/main');
 
-// ── ПАРСЕР СООБЩЕНИЙ ──
+// ── ПАРСЕР НА GEMINI ──
 
-const MASTERS = ['анна', 'юля', 'оля', 'елена', 'вика'];
-const SERVICES = ['маникюр', 'педикюр', 'стрижка', 'окрашивание', 'брови', 'прочее'];
-const PAYMENT_MAP = {
-  'нал': 'cash', 'кэш': 'cash', 'нали': 'cash',
-  'карта': 'card', 'безнал': 'card',
-  'сбп': 'sbp', 'перевод': 'sbp'
-};
-const EXPENSE_KEYWORDS = ['расход', 'аренда', 'жку', 'мтс', 'закупка', 'реклама', 'прочее'];
-const ADVANCE_KEYWORDS = ['аванс', 'зп', 'зарплата', 'выплата'];
+const MASTERS_LIST = ['Анна', 'Юля', 'Оля', 'Елена', 'Вика'];
+
+async function parseWithGemini(text, attempt = 1) {
+  const prompt = `
+Ты парсер сообщений для салона красоты. Извлеки данные из сообщения и верни ТОЛЬКО валидный JSON без markdown и пояснений.
+
+Мастера салона: ${MASTERS_LIST.join(', ')}
+Услуги: Маникюр, Педикюр, Стрижка, Окрашивание, Брови, Прочее
+Способы оплаты: cash (нал, наличные), card (карта, безнал), sbp (сбп, перевод, qr)
+Категории расходов: Аренда, ЖКУ, Материалы, Реклама, Зарплата, Прочее
+
+Сообщение: "${text}"
+
+Определи тип и верни один из вариантов:
+
+Если это запись клиента (мастер + услуга + сумма):
+{"type":"journal","master":"Имя","services":[{"title":"Услуга","amount":1000}],"payment":"cash"}
+
+Если несколько услуг у одного мастера одним чеком:
+{"type":"journal","master":"Имя","services":[{"title":"Маникюр","amount":1800},{"title":"Педикюр","amount":2500}],"payment":"sbp"}
+
+Если это расход салона:
+{"type":"expense","category":"Аренда","amount":50000}
+
+Если это аванс или зарплата мастеру:
+{"type":"advance","master":"Имя","amount":5000,"label":"Аванс"}
+
+Если не удалось распознать:
+{"type":"error","msg":"Поясни почему"}
+
+Правила:
+- Имя мастера всегда с заглавной буквы точно как в списке
+- amount всегда число без пробелов
+- payment по умолчанию "cash" если не указано
+- Для аванса label = "Аванс", для зарплаты label = "ЗП"
+`;
+
+  try {
+    const result = await geminiModel.generateContent(prompt);
+    const raw = result.response.text().trim();
+    const clean = raw.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean);
+  } catch (e) {
+    const isQuota = e.message?.includes('429') || e.status === 429;
+    console.error(`Gemini attempt ${attempt} error:`, e.message);
+    if (!isQuota && attempt < 3) {
+      await new Promise(r => setTimeout(r, 1000 * attempt));
+      return parseWithGemini(text, attempt + 1);
+    }
+    return { type: 'error', msg: isQuota ? '⚠️ Лимит Gemini API исчерпан. Пополни баланс на ai.google.dev' : 'Не удалось распознать. Попробуй ещё раз.' };
+  }
+}
+
+// ── ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ──
 
 function today() {
   return new Date().toISOString().split('T')[0];
 }
 
-function parseAmount(tokens) {
-  for (const t of tokens) {
-    const n = parseInt(t.replace(/\D/g, ''));
-    if (!isNaN(n) && n > 0) return n;
-  }
-  return null;
-}
-
-function parseMaster(tokens) {
-  for (const t of tokens) {
-    const match = MASTERS.find(m => m === t.toLowerCase());
-    if (match) return match.charAt(0).toUpperCase() + match.slice(1);
-  }
-  return null;
-}
-
-function parseService(tokens) {
-  for (const t of tokens) {
-    const match = SERVICES.find(s => s === t.toLowerCase());
-    if (match) return match.charAt(0).toUpperCase() + match.slice(1);
-  }
-  return 'Прочее';
-}
-
-function parsePayment(tokens) {
-  for (const t of tokens) {
-    const key = t.toLowerCase();
-    if (PAYMENT_MAP[key]) return PAYMENT_MAP[key];
-  }
-  return 'cash';
-}
-
-function parseMessage(text) {
-  const tokens = text.trim().split(/\s+/);
-  const lower = text.toLowerCase();
-
-  // АВАНС/ЗП: "Юля аванс 5000" / "Юля зп 10000"
-  if (ADVANCE_KEYWORDS.some(k => lower.includes(k))) {
-    const master = parseMaster(tokens);
-    const amount = parseAmount(tokens);
-    const isZp = lower.includes('зп') || lower.includes('зарплата');
-    if (master && amount) {
-      return { type: 'advance', master, amount, label: isZp ? 'ЗП' : 'Аванс' };
-    }
-    return { type: 'error', msg: `Не распознал. Пример: "Юля аванс 5000"` };
-  }
-
-  // РАСХОД: "Аренда 50000" / "Расход МТС 500"
-  if (EXPENSE_KEYWORDS.some(k => lower.includes(k)) || lower.startsWith('расход')) {
-    const amount = parseAmount(tokens);
-    const name = tokens.find(t => !parseInt(t) && !['расход'].includes(t.toLowerCase())) || 'Прочее';
-    const category = name.charAt(0).toUpperCase() + name.slice(1);
-    if (amount) {
-      return { type: 'expense', category, amount };
-    }
-    return { type: 'error', msg: `Не распознал расход. Пример: "Аренда 50000"` };
-  }
-
-  // ЗАПИСЬ В ЖУРНАЛ: "Юля маникюр 2000 нал"
-  const master = parseMaster(tokens);
-  const service = parseService(tokens);
-  const amount = parseAmount(tokens);
-  const payment = parsePayment(tokens);
-
-  if (master && amount) {
-    return { type: 'journal', master, service, amount, payment };
-  }
-
-  return {
-    type: 'error',
-    msg: `Не распознал. Примеры:\n• Юля маникюр 2000 нал\n• Аренда 50000\n• Юля аванс 5000`
-  };
-}
-
 // ── ЗАПИСЬ В FIRESTORE ──
 
-async function writeJournal({ master, service, amount, payment }) {
+async function writeJournal({ master, services, payment }) {
   const snap = await STATE_REF.get();
   const data = snap.exists ? snap.data() : {};
   const journal = data.journal || [];
@@ -113,17 +97,29 @@ async function writeJournal({ master, service, amount, payment }) {
   const masterObj = masters.find(m => m.name === master);
   const rate = masterObj?.rate1 || 40;
 
+  const entryServices = services.map(s => ({
+    id: Date.now() + Math.random(),
+    title: s.title,
+    amount: s.amount,
+    rate
+  }));
+
+  const totalAmount = entryServices.reduce((sum, s) => sum + s.amount, 0);
+  const payLabel = payment === 'cash' ? 'нал' : payment === 'card' ? 'карта' : 'СБП';
+
   const entry = {
     id: Date.now(),
     date: today(),
     masterName: master,
     paymentMethod: payment,
-    services: [{ id: Date.now(), title: service, amount, rate }],
+    services: entryServices,
     goods: []
   };
 
   await STATE_REF.set({ journal: [...journal, entry] }, { merge: true });
-  return `✅ Запись добавлена:\n👤 ${master} — ${service}\n💰 ${amount.toLocaleString('ru')} ₽ (${payment === 'cash' ? 'нал' : payment === 'card' ? 'карта' : 'СБП'})`;
+
+  const servicesSummary = services.map(s => `${s.title} ${s.amount.toLocaleString('ru')} ₽`).join(' + ');
+  return `✅ Запись добавлена:\n👤 ${master} — ${servicesSummary}\n💰 Итого: ${totalAmount.toLocaleString('ru')} ₽ (${payLabel})`;
 }
 
 async function writeExpense({ category, amount }) {
@@ -173,6 +169,28 @@ async function sendMessage(chat_id, text) {
 // ── ОБРАБОТКА ОБНОВЛЕНИЙ ──
 
 async function handleUpdate(update) {
+  const uid = update.update_id;
+
+  // Локальная проверка
+  if (processedUpdates.has(uid)) return;
+
+  // Проверка через Firestore (защита от нескольких процессов)
+  const lockRef = db.doc(`artifacts/dashboard-27927/public/data/botLocks/${uid}`);
+  const lockSnap = await lockRef.get();
+  if (lockSnap.exists) return;
+
+  // Устанавливаем lock
+  await lockRef.set({ ts: Date.now() });
+  processedUpdates.set(uid, Date.now());
+
+  // Чистим старые локи (старше 1 часа)
+  if (processedUpdates.size > 200) {
+    const hour = Date.now() - 3600000;
+    for (const [id, ts] of processedUpdates) {
+      if (ts < hour) processedUpdates.delete(id);
+    }
+  }
+
   const msg = update.message;
   if (!msg || !msg.text) return;
 
@@ -186,12 +204,12 @@ async function handleUpdate(update) {
   }
 
   if (text === '/start') {
-    await sendMessage(chatId, `👋 Freedom Bot запущен!\n\nПримеры команд:\n• <b>Юля маникюр 2000 нал</b> — запись в журнал\n• <b>Аренда 50000</b> — расход\n• <b>Юля аванс 5000</b> — аванс мастеру\n• <b>Юля зп 15000</b> — выплата зарплаты`);
+    await sendMessage(chatId, `👋 Freedom Bot запущен!\n\nТеперь понимаю любые фразы:\n• <b>Аня сделала маникюр и педикюр, клиент заплатил 4300 по сбп</b>\n• <b>Оплата аренды 50000</b>\n• <b>Юля получила аванс пять тысяч</b>\n• <b>брови оля 1500 нал</b>`);
     return;
   }
 
   try {
-    const parsed = parseMessage(text);
+    const parsed = await parseWithGemini(text);
 
     let reply;
     if (parsed.type === 'journal') reply = await writeJournal(parsed);
@@ -206,18 +224,29 @@ async function handleUpdate(update) {
   }
 }
 
+const processedUpdates = new Map(); // update_id -> timestamp
+let isPolling = false;
+
 async function poll(offset = 0) {
-  try {
-    const r = await fetch(`${API}/getUpdates?offset=${offset}&timeout=30`);
-    const data = await r.json();
-    for (const update of data.result || []) {
-      await handleUpdate(update);
-      offset = update.update_id + 1;
+  if (isPolling) return;
+  isPolling = true;
+
+  while (true) {
+    try {
+      const r = await fetch(`${API}/getUpdates?offset=${offset}&timeout=25&allowed_updates=["message"]`);
+      const data = await r.json();
+
+      for (const update of data.result || []) {
+        if (!processedUpdates.has(update.update_id)) {
+          await handleUpdate(update);
+        }
+        offset = update.update_id + 1;
+      }
+    } catch (e) {
+      console.error('Poll error:', e.message);
+      await new Promise(r => setTimeout(r, 3000));
     }
-  } catch (e) {
-    console.error('Poll error:', e.message);
   }
-  setTimeout(() => poll(offset), 1000);
 }
 
 fetch(`${API}/deleteWebhook`).then(() => {
