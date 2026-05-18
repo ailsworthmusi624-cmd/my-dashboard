@@ -70,16 +70,16 @@ function App() {
 
   // Переключатель рабочих пространств (используется и в мобильной шапке, и в десктопном сайдбаре)
   const WorkspaceSwitcher = () => (
-    <div className="flex bg-white/40 backdrop-blur-sm p-1 rounded-xl border border-white/60">
+    <div className="flex bg-black/5 backdrop-blur-md p-1 rounded-xl">
       <button 
         onClick={() => setWorkspace('personal')} 
-        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${workspace === 'personal' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${workspace === 'personal' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
       >
         <Wallet size={16}/> Финансы
       </button>
       <button 
         onClick={() => setWorkspace('salon')} 
-        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${workspace === 'salon' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${workspace === 'salon' ? 'bg-white shadow-sm text-purple-700' : 'text-slate-500 hover:text-slate-700'}`}
       >
         <Scissors size={16}/> Салон
       </button>
@@ -89,7 +89,7 @@ function App() {
   if (!isAuthed) {
     return (
       <div className="h-[100svh] flex items-center justify-center bg-gradient-to-br from-slate-100 via-blue-50/40 to-slate-200">
-        <div className="w-full max-w-sm mx-4 bg-white/60 backdrop-blur-xl border border-white/80 rounded-3xl shadow-xl p-8 flex flex-col items-center gap-5">
+        <div className="w-full max-w-sm mx-4 bg-white/70 backdrop-blur-2xl border border-white/80 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 flex flex-col items-center gap-5">
 
           <div className="w-16 h-16 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-200">
             <span className="text-white text-2xl font-black">F</span>
@@ -138,10 +138,10 @@ function App() {
   }
 
   return (
-    <div className="h-[100svh] flex overflow-hidden font-sans text-slate-900">
+    <div className="h-[100svh] flex overflow-hidden font-sans text-slate-900 bg-slate-50">
       
       {/* ─── DESKTOP SIDEBAR ─── */}
-      <aside className="hidden lg:flex w-72 bg-white/60 backdrop-blur-xl border-r border-white/80 flex-col z-20">
+      <aside className="hidden lg:flex w-72 bg-white/40 backdrop-blur-2xl border-r border-white/40 flex-col z-20">
         <div className="p-6">
           <h1 className="text-2xl font-black tracking-tight text-slate-900 mb-6">Freedom.</h1>
           <WorkspaceSwitcher />
@@ -171,7 +171,7 @@ function App() {
       <div className="flex-1 flex flex-col h-full relative overflow-hidden">
         
         {/* MOBILE HEADER */}
-        <header className="lg:hidden bg-white/60 backdrop-blur-xl border-b border-white/60 px-4 py-3 flex flex-col gap-3 z-20 shrink-0">
+        <header className="lg:hidden bg-white/40 backdrop-blur-2xl border-b border-white/40 px-4 py-3 flex flex-col gap-3 z-20 shrink-0">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-black tracking-tight text-slate-900">Freedom.</h1>
           </div>

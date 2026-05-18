@@ -133,15 +133,15 @@ export default function SalonDashboard() {
   const safeWithdrawal = Math.max(0, metrics.netProfit - metrics.taxReserveTarget - metrics.insuranceFund);
 
   const KpiBox = ({ label1, value1, sub1, label2, value2, highlight, onClick }) => (
-    <div onClick={onClick} className={`bg-white/60 backdrop-blur-xl p-5 rounded-[24px] shadow-sm border border-white/80 flex flex-col justify-between h-full hover:shadow-md transition-all ${onClick ? 'cursor-pointer hover:border-indigo-300 hover:ring-2 ring-indigo-50' : ''}`}>
+    <div onClick={onClick} className={`bg-white/70 backdrop-blur-2xl p-6 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 flex flex-col justify-between h-full hover:-translate-y-1 transition-transform duration-300 ${onClick ? 'cursor-pointer' : ''}`}>
       <div className="mb-4">
-        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{label1}</div>
-        <div className={`font-mono text-2xl md:text-3xl font-black ${highlight ? 'text-indigo-600' : 'text-slate-900'}`}>{value1}</div>
+        <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">{label1}</div>
+        <div className={`font-mono text-3xl md:text-4xl font-black ${highlight ? 'text-emerald-500' : 'text-slate-900'}`}>{value1}</div>
         {sub1 && <div className="text-[9px] font-bold text-slate-400 mt-1">{sub1}</div>}
       </div>
-      <div className="pt-3 border-t border-slate-50">
-        <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">{label2}</div>
-        <div className="font-mono text-base font-black text-slate-700">{value2}</div>
+      <div>
+        <div className="text-[10px] font-bold text-slate-400">{label2}</div>
+        <div className="font-mono text-sm font-black text-slate-700">{value2}</div>
       </div>
     </div>
   );
@@ -153,11 +153,11 @@ export default function SalonDashboard() {
       {/* ─── ШАПКА ─── */}
       <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-indigo-600 text-white rounded-[16px] flex items-center justify-center shadow-lg shadow-indigo-200 shrink-0">
+          <div className="w-12 h-12 bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-[16px] flex items-center justify-center shadow-lg shadow-slate-300/50 shrink-0">
             <Target size={24} />
           </div>
           <div>
-            <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Command Center</h2>
+            <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Command Center</h2>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Управление салоном</p>
           </div>
         </div>
@@ -181,12 +181,12 @@ export default function SalonDashboard() {
       )}
 
       {/* ─── SAFE WITHDRAWAL ─── */}
-      <div className="bg-emerald-500 rounded-[32px] p-6 md:p-8 text-white shadow-xl shadow-emerald-200 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-[32px] p-8 text-white shadow-[0_10px_40px_rgba(16,185,129,0.3)] relative overflow-hidden">
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-400 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
         <div className="flex justify-between items-start mb-2 relative z-10">
           <div>
             <div className="text-[10px] font-black uppercase tracking-widest text-emerald-100 mb-1">Безопасно к выводу сегодня</div>
-            <div className="font-mono text-4xl md:text-5xl font-black tracking-tight">{fmt(safeWithdrawal)}</div>
+            <div className="font-mono text-5xl md:text-6xl font-black tracking-tighter mt-1">{fmt(safeWithdrawal)}</div>
           </div>
           <div className="w-12 h-12 bg-white/20 rounded-[16px] flex items-center justify-center backdrop-blur-md">
             <Wallet size={24} className="text-white" />
@@ -206,15 +206,15 @@ export default function SalonDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* ─── МАСТЕРА И ФОТ ─── */}
-        <div className="lg:col-span-2 bg-white/60 backdrop-blur-xl rounded-[32px] border border-white/80 shadow-sm p-6 md:p-8">
+        <div className="lg:col-span-2 bg-white/70 backdrop-blur-2xl rounded-[32px] border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
           <h3 className="font-black text-xl text-slate-900 mb-6 flex items-center gap-2"><Users className="text-indigo-500" size={20}/> Эффективность мастеров</h3>
           <div className="space-y-3">
             {metrics.mastersList.map(m => (
-              <div key={m.id} className="flex justify-between items-center p-4 bg-white/30 rounded-[20px] border border-white/80 hover:bg-white/50 transition-colors">
+              <div key={m.id} className="flex justify-between items-center p-5 bg-white/50 rounded-[24px] shadow-sm border border-white/60 hover:bg-white/50 transition-colors">
                 <span className="font-black text-sm text-slate-900">{m.name}</span>
                 <div className="flex gap-6 md:gap-10 text-right">
                   <div><div className="text-[9px] font-black uppercase tracking-widest text-slate-400">Выручка</div><div className="font-mono text-sm font-bold text-slate-700">{fmt(m.gross)}</div></div>
-                  <div><div className="text-[9px] font-black uppercase tracking-widest text-slate-400">Зарплата</div><div className="font-mono text-sm font-black text-indigo-600">{fmt(m.toPay)}</div></div>
+                  <div><div className="text-[9px] font-black uppercase tracking-widest text-slate-400">Зарплата</div><div className="font-mono text-sm font-black text-emerald-500">{fmt(m.toPay)}</div></div>
                 </div>
               </div>
             ))}
@@ -226,16 +226,16 @@ export default function SalonDashboard() {
         </div>
 
         {/* ─── РЕЗЕРВЫ ─── */}
-        <div className="bg-white/60 backdrop-blur-xl rounded-[32px] border border-white/80 shadow-sm p-6 md:p-8">
+        <div className="bg-white/70 backdrop-blur-2xl rounded-[32px] border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8">
           <h3 className="font-black text-xl text-slate-900 mb-6 flex items-center gap-2"><Wallet className="text-emerald-500" size={20}/> Фонды</h3>
           <div className="space-y-4">
-            <div className="p-5 bg-white/30 rounded-[24px] border border-white/80">
+            <div className="p-5 bg-white/50 rounded-[24px] shadow-sm border border-white/60">
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Резерв под налог (3%)</div>
               <div className="font-mono text-2xl font-black text-slate-900 mb-2">{fmt(metrics.taxReserveTarget)}</div>
               <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden"><div className="w-0 h-full bg-emerald-500"/></div>
               <div className="text-[9px] font-bold text-slate-400 mt-2 uppercase tracking-widest">Цель по выручке</div>
             </div>
-            <div className="p-5 bg-white/30 rounded-[24px] border border-white/80">
+            <div className="p-5 bg-white/50 rounded-[24px] shadow-sm border border-white/60">
               <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Страховой фонд (10%)</div>
               <div className="font-mono text-2xl font-black text-slate-900 mb-2">{fmt(metrics.insuranceFund)}</div>
               <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">От чистой прибыли</div>
