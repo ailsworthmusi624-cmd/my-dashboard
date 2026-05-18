@@ -242,6 +242,57 @@ async function writeAdvance({ master, amount, label }, token) {
   return `✅ ${label} записан:\n👤 ${master} — ${amount.toLocaleString('ru')} ₽`;
 }
 
+async function checkPayrollNotification(masterName, chatId, token, botToken) {
+  const data = await fsGet(token);
+  const journal = data.journal || [];
+  const advances = data.advances || [];
+  const masters = data.masters || [];
+
+  const masterObj = masters.find(m => m.name === masterName);
+  const rate = masterObj?.rate1 || 40;
+
+  const masterEntries = journal.filter(e => e.masterName === masterName);
+  const uniqueDates = [...new Set(masterEntries.map(e => e.date))].sort();
+  const totalShifts = uniqueDates.length;
+
+  if (totalShifts === 0 || totalShifts % 4 !== 0) return;
+
+  const last4Dates = uniqueDates.slice(-4);
+  const last4Entries = masterEntries.filter(e => last4Dates.includes(e.date));
+
+  const revenue = last4Entries.reduce((sum, entry) => {
+    const servicesSum = (entry.services || []).reduce((s, sv) => s + (sv.amount || 0), 0);
+    const goodsSum = (entry.goods || []).reduce((s, g) => s + (g.amount || 0), 0);
+    return sum + servicesSum + goodsSum;
+  }, 0);
+
+  const earned = Math.round(revenue * rate / 100);
+
+  const periodStart = last4Dates[0];
+  const periodEnd = last4Dates[3];
+  const periodAdvances = advances
+    .filter(a => a.masterName === masterName && a.date >= periodStart && a.date <= periodEnd && a.type === 'Аванс')
+    .reduce((sum, a) => sum + (a.amount || 0), 0);
+
+  const toPay = Math.max(0, earned - periodAdvances);
+
+  const fmt = d => new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+
+  const msg = [
+    `💰 Расчёт зарплаты — ${masterName}`,
+    `📅 Период: ${fmt(periodStart)} — ${fmt(periodEnd)} (${totalShifts} смен)`,
+    ``,
+    `📊 Выручка за 4 смены: ${revenue.toLocaleString('ru')} ₽`,
+    `💼 Ставка: ${rate}%`,
+    `✅ Заработано: ${earned.toLocaleString('ru')} ₽`,
+    periodAdvances > 0 ? `💸 Аванс: −${periodAdvances.toLocaleString('ru')} ₽` : null,
+    ``,
+    `💵 К выплате: ${toPay.toLocaleString('ru')} ₽`
+  ].filter(Boolean).join('\n');
+
+  await sendMessage(chatId, msg, botToken);
+}
+
 async function sendMessage(chat_id, text, botToken) {
   await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: 'POST',
@@ -266,11 +317,19 @@ async function handleUpdate(update, token, botToken) {
   try {
     const parsed = parseMessage(text);
     let reply;
-    if (parsed.type === 'journal') reply = await writeJournal(parsed, token);
-    else if (parsed.type === 'expense') reply = await writeExpense(parsed, token);
-    else if (parsed.type === 'advance') reply = await writeAdvance(parsed, token);
-    else reply = `❓ ${parsed.msg}`;
-    await sendMessage(chatId, reply, botToken);
+    if (parsed.type === 'journal') {
+      reply = await writeJournal(parsed, token);
+      await sendMessage(chatId, reply, botToken);
+      await checkPayrollNotification(parsed.master, chatId, token, botToken);
+    } else if (parsed.type === 'expense') {
+      reply = await writeExpense(parsed, token);
+      await sendMessage(chatId, reply, botToken);
+    } else if (parsed.type === 'advance') {
+      reply = await writeAdvance(parsed, token);
+      await sendMessage(chatId, reply, botToken);
+    } else {
+      await sendMessage(chatId, `❓ ${parsed.msg}`, botToken);
+    }
   } catch (e) {
     console.error(e);
     await sendMessage(chatId, `⚠️ Ошибка: ${e.message}`, botToken);
