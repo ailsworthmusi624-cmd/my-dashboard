@@ -183,7 +183,7 @@ export default function Masters() {
 
               {/* Раскрывающаяся часть */}
               {isExpanded && (
-                <div className="p-6 pt-0 border-t border-white/10 bg-black/20 space-y-4">
+                <div className="p-6 pt-0 border-t border-white/10 bg-black/20 flex flex-col gap-4">
                   {/* Настройки мастера */}
                   <div className="grid grid-cols-2 gap-4 bg-white/10 p-4 rounded-2xl border border-white/20">
                     <div>
@@ -196,7 +196,7 @@ export default function Masters() {
                     </div>
                   </div>
 
-                  <div className="bg-purple-600 text-white rounded-[24px] p-5 shadow-lg shadow-purple-200">
+                  <div className="bg-purple-600 text-white rounded-[24px] p-5 shadow-lg">
                     <div className="flex justify-between items-center mb-4">
                       <div><div className="text-[10px] font-black uppercase tracking-widest text-purple-200">Начислено</div><div className="font-black text-lg">{fmt(master.totalSalary)}</div></div>
                       <div className="text-right"><div className="text-[10px] font-black uppercase tracking-widest text-purple-200">Выдано авансов</div><div className="font-black text-lg">{fmt(master.advancesSum)}</div></div>

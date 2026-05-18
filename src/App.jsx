@@ -5,6 +5,77 @@ import {
   Cloud, CloudOff, Loader2, Sparkles
 } from 'lucide-react';
 import useAppStore, { initFirebaseSync } from './store/useAppStore';
+import { askSmartAssistant } from './shared/utils/aiService';
+
+const AiSearchBarInline = () => {
+  const [q, setQ] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const [answer, setAnswer] = React.useState('');
+  const [open, setOpen] = React.useState(false);
+
+  const ask = async () => {
+    if (!q.trim()) return;
+    setLoading(true);
+    setOpen(true);
+    try {
+      const state = useAppStore.getState();
+      const res = await askSmartAssistant(q, state);
+      setAnswer(res[0]?.text || 'Нет ответа');
+    } catch { setAnswer('Ошибка AI'); }
+    setLoading(false);
+  };
+
+  return (
+    <div className="flex-1 relative">
+      <div className="flex items-center bg-slate-100 rounded-xl px-3 py-1.5 gap-2">
+        <Sparkles size={12} className="text-purple-400 shrink-0"/>
+        <input
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && ask()}
+          placeholder="Спросить AI..."
+          className="bg-transparent text-xs font-medium outline-none flex-1 text-slate-700 placeholder-slate-400"
+        />
+      </div>
+      {open && (
+        <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-100 rounded-2xl p-3 shadow-xl z-50 text-xs text-slate-700 font-medium">
+          {loading ? 'Думаю...' : answer}
+          <button onClick={() => { setOpen(false); setQ(''); }} className="ml-2 text-slate-400 font-bold">✕</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SafeWithdrawalBadge = () => {
+  const journal = useAppStore(s => s.journal ?? []);
+  const expenses = useAppStore(s => s.expenses ?? []);
+
+  const safe = React.useMemo(() => {
+    let revenue = 0, payroll = 0, bankComm = 0;
+    journal.forEach(e => {
+      let rev = 0;
+      (e.services||[]).forEach(s => { const a = Number(s.amount)||0; rev += a; payroll += a*(Number(s.rate)||0)/100; });
+      (e.goods||[]).forEach(g => { const a = Number(g.amount)||0; rev += a; payroll += a*(Number(g.rate)||0)/100; });
+      revenue += rev;
+      if (e.paymentMethod === 'card') bankComm += rev * 0.029;
+      else if (e.paymentMethod === 'sbp') bankComm += rev * 0.007;
+    });
+    const fixed = expenses.reduce((s, e) => s + (Number(e.amount)||0), 0);
+    const variable = payroll + bankComm + revenue * 0.06;
+    const net = revenue - fixed - variable;
+    const tax = revenue * 0.03;
+    const ins = net > 0 ? net * 0.1 : 0;
+    return Math.max(0, net - tax - ins);
+  }, [journal, expenses]);
+
+  return (
+    <div className="flex items-center gap-1.5 bg-emerald-500 text-white rounded-xl px-3 py-1.5 shrink-0">
+      <Wallet size={12}/>
+      <span className="text-xs font-black">{Math.round(safe).toLocaleString('ru')} ₽</span>
+    </div>
+  );
+};
 import Calculators from './workspaces/personal/tabs/Calculators';
 import Investing from './workspaces/personal/tabs/Investing';
 import Analytics from './workspaces/personal/tabs/Analytics';
@@ -171,21 +242,12 @@ function App() {
       <div className="flex-1 flex flex-col h-full relative overflow-hidden">
         
         {/* MOBILE HEADER */}
-        <header className="lg:hidden bg-white/40 backdrop-blur-2xl border-b border-white/40 px-4 py-3 flex flex-col gap-3 z-20 shrink-0">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-black tracking-tight text-slate-900">Freedom.</h1>
-          </div>
+        <header className="lg:hidden bg-white border-b border-slate-100 px-4 py-3 z-20 shrink-0">
           <WorkspaceSwitcher />
-          {/* AI поиск в header */}
-          <div className="flex items-center gap-2">
-            <div className="flex-1 relative">
-              <input
-                placeholder="Спросить AI..."
-                className="w-full bg-slate-100 rounded-xl px-4 py-2 text-sm outline-none pl-8"
-                onFocus={() => setActiveTab('dashboard')}
-              />
-              <Sparkles size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-purple-400" />
-            </div>
+          <div className="flex items-center gap-2 mt-2">
+            <h1 className="text-lg font-black tracking-tight text-slate-900 shrink-0">Freedom.</h1>
+            <AiSearchBarInline />
+            <SafeWithdrawalBadge />
           </div>
         </header>
 

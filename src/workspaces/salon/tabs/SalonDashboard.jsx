@@ -234,36 +234,46 @@ export default function SalonDashboard() {
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-400 inline-block"/>Прибыль</span>
             </div>
           </div>
-          <div className="flex items-end gap-1 h-40 overflow-x-auto pb-2">
-            {metrics.dailyData.map(day => {
-              const total = day.fixedCosts + day.variableCosts + day.profit;
-              if (total === 0) return (
-                <div key={day.date} className="flex flex-col items-center gap-1 min-w-[28px] flex-1">
-                  <div className="w-full h-1 bg-slate-100 rounded-full" />
-                  <span className="text-[8px] text-slate-300 font-bold">{day.date.slice(8)}</span>
-                </div>
-              );
-              const fixedPct = (day.fixedCosts / total) * 100;
-              const varPct = (day.variableCosts / total) * 100;
-              const profitPct = (day.profit / total) * 100;
-              return (
-                <div key={day.date} className="flex flex-col items-center gap-1 min-w-[28px] flex-1 group relative">
-                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] rounded-lg px-2 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 font-bold">
-                    <div>Выручка: {fmt(day.revenue)} ₽</div>
-                    <div className="text-rose-300">Пост: −{fmt(day.fixedCosts)} ₽</div>
-                    <div className="text-amber-300">Перем: −{fmt(day.variableCosts)} ₽</div>
-                    <div className="text-emerald-300">Прибыль: {fmt(day.profit)} ₽</div>
-                  </div>
-                  <div className="w-full flex flex-col rounded-lg overflow-hidden" style={{height: '120px'}}>
-                    <div className="w-full bg-emerald-400" style={{flex: profitPct}} />
-                    <div className="w-full bg-amber-400" style={{flex: varPct}} />
-                    <div className="w-full bg-rose-400" style={{flex: fixedPct}} />
-                  </div>
-                  <span className="text-[8px] text-slate-400 font-bold">{day.date.slice(8)}</span>
-                </div>
-              );
-            })}
-          </div>
+          {(() => {
+            const [touchedDate, setTouchedDate] = React.useState(null);
+            return (
+              <div className="flex items-end gap-1 h-40 overflow-x-auto pb-2">
+                {metrics.dailyData.map(day => {
+                  const total = day.fixedCosts + day.variableCosts + day.profit;
+                  if (total === 0) return (
+                    <div key={day.date} className="flex flex-col items-center gap-1 min-w-[28px] flex-1">
+                      <div className="w-full h-1 bg-slate-100 rounded-full" />
+                      <span className="text-[8px] text-slate-300 font-bold">{day.date.slice(8)}</span>
+                    </div>
+                  );
+                  const fixedPct = (day.fixedCosts / total) * 100;
+                  const varPct = (day.variableCosts / total) * 100;
+                  const profitPct = (day.profit / total) * 100;
+                  const isTouched = touchedDate === day.date;
+                  return (
+                    <div
+                      key={day.date}
+                      className="flex flex-col items-center gap-1 min-w-[28px] flex-1 group relative"
+                      onTouchStart={() => setTouchedDate(isTouched ? null : day.date)}
+                    >
+                      <div className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] rounded-lg px-2 py-1.5 pointer-events-none whitespace-nowrap z-10 font-bold ${isTouched ? 'block' : 'hidden group-hover:block'}`}>
+                        <div>Выручка: {fmt(day.revenue)} ₽</div>
+                        <div className="text-rose-300">Пост: −{fmt(day.fixedCosts)} ₽</div>
+                        <div className="text-amber-300">Перем: −{fmt(day.variableCosts)} ₽</div>
+                        <div className="text-emerald-300">Прибыль: {fmt(day.profit)} ₽</div>
+                      </div>
+                      <div className="w-full flex flex-col rounded-lg overflow-hidden" style={{height: '120px'}}>
+                        <div className="w-full bg-emerald-400" style={{flex: profitPct}} />
+                        <div className="w-full bg-amber-400" style={{flex: varPct}} />
+                        <div className="w-full bg-rose-400" style={{flex: fixedPct}} />
+                      </div>
+                      <span className="text-[8px] text-slate-400 font-bold">{day.date.slice(8)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 

@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { Plus, Edit2, Trash2, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import useAppStore from '../../../store/useAppStore';
 import AddJournalModal from '../../../shared/modals/AddJournalModal';
-import AiSearchBar from '../../../shared/components/AiSearchBar';
-
 export default function Journal() {
   const journal = useAppStore(s => s.journal || []);
   const deleteJournalEntry = useAppStore(s => s.deleteJournalEntry);
@@ -61,7 +59,6 @@ export default function Journal() {
 
   return (
     <div className="space-y-6 pb-8">
-      <AiSearchBar />
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-black text-slate-900 tracking-tight">Журнал</h2>
         <button 
@@ -177,6 +174,16 @@ export default function Journal() {
                                       <div className="flex flex-col lg:items-end">
                                         <span className="text-sm font-black text-emerald-600">{entryRev.toLocaleString()} ₽</span>
                                         <span className="text-[10px] font-bold text-rose-500 mt-0.5">ФОТ: {entryPay.toLocaleString()} ₽</span>
+                                        {entry.paymentMethod === 'card' && (
+                                          <span className="text-[10px] text-orange-500 font-bold">
+                                            Комиссия: −{Math.round(entryRev * 0.029).toLocaleString('ru')} ₽
+                                          </span>
+                                        )}
+                                        {entry.paymentMethod === 'sbp' && (
+                                          <span className="text-[10px] text-orange-500 font-bold">
+                                            Комиссия: −{Math.round(entryRev * 0.007).toLocaleString('ru')} ₽
+                                          </span>
+                                        )}
                                       </div>
                                     </div>
                                     
