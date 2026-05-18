@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { AlertCircle, Target, Users, Banknote, Calendar, Wallet, X } from 'lucide-react';
+import { AlertCircle, Users, Banknote, Calendar, Wallet, X } from 'lucide-react';
 import useAppStore from '../../../store/useAppStore';
 import { fmt } from '../../../shared/utils/format';
 export default function SalonDashboard() {
@@ -162,12 +162,12 @@ export default function SalonDashboard() {
     <div onClick={onClick} className={`bg-white/70 backdrop-blur-2xl p-6 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 flex flex-col justify-between h-full hover:-translate-y-1 transition-transform duration-300 ${onClick ? 'cursor-pointer' : ''}`}>
       <div className="mb-4">
         <div className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">{label1}</div>
-        <div className={`font-mono text-2xl md:text-4xl font-black break-words ${highlight ? 'text-emerald-500' : 'text-slate-900'}`}>{value1}</div>
+        <div className={`font-mono font-black truncate ${highlight ? 'text-emerald-500' : 'text-slate-900'}`} style={{fontSize: 'clamp(14px, 4vw, 28px)'}}>{value1}</div>
         {sub1 && <div className="text-[9px] font-bold text-slate-400 mt-1">{sub1}</div>}
       </div>
       <div>
         <div className="text-[10px] font-bold text-slate-400">{label2}</div>
-        <div className="font-mono text-sm font-black text-slate-700">{value2}</div>
+        <div className="font-mono font-black text-slate-700 truncate" style={{fontSize: 'clamp(12px, 3vw, 18px)'}}>{value2}</div>
       </div>
     </div>
   );
@@ -176,31 +176,10 @@ export default function SalonDashboard() {
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300 pb-10">
 
       {/* ─── ШАПКА ─── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-slate-800 to-slate-900 text-white rounded-[16px] flex items-center justify-center shadow-lg shadow-slate-300/50 shrink-0">
-            <Target size={24} />
-          </div>
-          <div>
-            <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Command Center</h2>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Управление салоном</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {/* ─── SAFE WITHDRAWAL compact ─── */}
-          <div className="flex items-center gap-3 bg-emerald-500 rounded-2xl px-5 py-3 text-white shadow-lg shadow-emerald-100">
-            <Wallet size={18} className="text-emerald-100 shrink-0" />
-            <div>
-              <div className="text-[9px] font-black uppercase tracking-widest text-emerald-100">Безопасно к выводу</div>
-              <div className="font-mono text-lg font-black leading-tight">{fmt(safeWithdrawal)} ₽</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 bg-white/60 backdrop-blur-xl border border-white/80 rounded-2xl p-1.5 shadow-sm">
-            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
-            <span className="text-slate-300 font-bold">—</span>
-            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
-          </div>
-        </div>
+      <div className="flex items-center gap-2 bg-white/60 backdrop-blur-sm border border-white/80 rounded-2xl p-2 shadow-sm">
+        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
+        <span className="text-slate-300 font-bold">—</span>
+        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
       </div>
 
       {/* ─── АЛЕРТЫ ─── */}
@@ -225,49 +204,46 @@ export default function SalonDashboard() {
       
       {/* ─── ГРАФИК ПО ДНЯМ ─── */}
       {metrics.dailyData?.length > 0 && (
-        <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-black text-lg text-slate-900">Доходы и расходы по дням</h3>
-            <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest">
-              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-rose-400 inline-block"/>Пост. расходы</span>
-              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block"/>Перем. расходы</span>
-              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-400 inline-block"/>Прибыль</span>
+        <div className="bg-white/60 backdrop-blur-xl border border-white/80 rounded-2xl shadow-sm p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-black text-sm text-slate-900">По дням</h3>
+            <div className="flex items-center gap-3 text-[9px] font-bold uppercase tracking-widest text-slate-500">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-rose-400 inline-block"/>Расходы</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-amber-400 inline-block"/>ФОТ</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-emerald-400 inline-block"/>Прибыль</span>
             </div>
           </div>
           {(() => {
-            const [touchedDate, setTouchedDate] = React.useState(null);
+            const BAR_HEIGHT = 100;
+            const maxVal = Math.max(...metrics.dailyData.map(d => d.fixedCosts + d.variableCosts + d.profit), 1);
             return (
-              <div className="flex items-end gap-1 h-40 overflow-x-auto pb-2">
+              <div className="flex items-end gap-0.5 overflow-x-auto pb-1" style={{height: BAR_HEIGHT + 28 + 'px'}}>
                 {metrics.dailyData.map(day => {
                   const total = day.fixedCosts + day.variableCosts + day.profit;
-                  if (total === 0) return (
-                    <div key={day.date} className="flex flex-col items-center gap-1 min-w-[28px] flex-1">
-                      <div className="w-full h-1 bg-slate-100 rounded-full" />
-                      <span className="text-[8px] text-slate-300 font-bold">{day.date.slice(8)}</span>
-                    </div>
-                  );
-                  const fixedPct = (day.fixedCosts / total) * 100;
-                  const varPct = (day.variableCosts / total) * 100;
-                  const profitPct = (day.profit / total) * 100;
-                  const isTouched = touchedDate === day.date;
+                  const scale = total > 0 ? (total / maxVal) * BAR_HEIGHT : 0;
+                  const fixedH = total > 0 ? (day.fixedCosts / total) * scale : (day.fixedCosts > 0 ? (day.fixedCosts / maxVal) * BAR_HEIGHT : 4);
+                  const varH = total > 0 ? (day.variableCosts / total) * scale : 0;
+                  const profitH = total > 0 ? (day.profit / total) * scale : 0;
+                  const hasRevenue = day.revenue > 0;
                   return (
-                    <div
-                      key={day.date}
-                      className="flex flex-col items-center gap-1 min-w-[28px] flex-1 group relative"
-                      onTouchStart={() => setTouchedDate(isTouched ? null : day.date)}
-                    >
-                      <div className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] rounded-lg px-2 py-1.5 pointer-events-none whitespace-nowrap z-10 font-bold ${isTouched ? 'block' : 'hidden group-hover:block'}`}>
-                        <div>Выручка: {fmt(day.revenue)} ₽</div>
-                        <div className="text-rose-300">Пост: −{fmt(day.fixedCosts)} ₽</div>
-                        <div className="text-amber-300">Перем: −{fmt(day.variableCosts)} ₽</div>
-                        <div className="text-emerald-300">Прибыль: {fmt(day.profit)} ₽</div>
+                    <div key={day.date} className="flex flex-col items-center flex-1 min-w-[20px] group relative" style={{height: BAR_HEIGHT + 28 + 'px'}}>
+                      <div className="absolute bottom-7 left-1/2 -translate-x-1/2 bg-slate-900 text-white rounded-xl p-2 hidden group-hover:block z-20 whitespace-nowrap text-[9px] font-bold shadow-xl pointer-events-none">
+                        <div className="text-slate-300">{day.date.slice(5)}</div>
+                        {hasRevenue && <div className="text-emerald-300">Выручка: {Math.round(day.revenue).toLocaleString()} ₽</div>}
+                        <div className="text-rose-300">Расходы: {Math.round(day.fixedCosts).toLocaleString()} ₽</div>
+                        {hasRevenue && <div className="text-amber-300">ФОТ: {Math.round(day.variableCosts).toLocaleString()} ₽</div>}
+                        {hasRevenue && <div className="text-emerald-300">Прибыль: {Math.round(day.profit).toLocaleString()} ₽</div>}
                       </div>
-                      <div className="w-full flex flex-col rounded-lg overflow-hidden" style={{height: '120px'}}>
-                        <div className="w-full bg-emerald-400" style={{flex: profitPct}} />
-                        <div className="w-full bg-amber-400" style={{flex: varPct}} />
-                        <div className="w-full bg-rose-400" style={{flex: fixedPct}} />
+                      <div className="flex flex-col justify-end w-full rounded-t overflow-hidden" style={{height: BAR_HEIGHT + 'px'}}>
+                        {profitH > 0 && (
+                          <div className="w-full bg-emerald-400 flex items-center justify-center relative" style={{height: profitH + 'px'}}>
+                            {profitH > 14 && <span className="text-[7px] font-black text-white leading-none">{Math.round(day.profit/1000)}к</span>}
+                          </div>
+                        )}
+                        {varH > 0 && <div className="w-full bg-amber-400" style={{height: varH + 'px'}}/>}
+                        {fixedH > 0 && <div className="w-full bg-rose-400 rounded-t" style={{height: fixedH + 'px'}}/>}
                       </div>
-                      <span className="text-[8px] text-slate-400 font-bold">{day.date.slice(8)}</span>
+                      <span className="text-[8px] text-slate-400 font-bold mt-1">{day.date.slice(8)}</span>
                     </div>
                   );
                 })}

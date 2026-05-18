@@ -82,6 +82,7 @@ export default function Journal() {
           
           let totalRevenue = 0;
           let totalPayroll = 0;
+          let totalCommission = 0;
 
           entries.forEach(entry => {
             const srvTotal = (entry.services || []).reduce((acc, s) => acc + Number(s.amount || 0), 0);
@@ -91,6 +92,10 @@ export default function Journal() {
             const srvPay = (entry.services || []).reduce((acc, s) => acc + (Number(s.amount || 0) * (Number(s.rate || 0) / 100)), 0);
             const goodsPay = (entry.goods || []).reduce((acc, g) => acc + (Number(g.amount || 0) * (Number(g.rate || 0) / 100)), 0);
             totalPayroll += (srvPay + goodsPay);
+
+            const rev = srvTotal + goodsTotal;
+            if (entry.paymentMethod === 'card') totalCommission += rev * 0.029;
+            else if (entry.paymentMethod === 'sbp') totalCommission += rev * 0.007;
           });
           
           return (
@@ -107,6 +112,10 @@ export default function Journal() {
                   <span>Чеков: <span className="text-slate-900 ml-1">{entries.length}</span></span>
                   <span className="text-slate-300">|</span>
                   <span>ФОТ: <span className="text-rose-500 ml-1">{totalPayroll.toLocaleString()} ₽</span></span>
+                  {totalCommission > 0 && <>
+                    <span className="text-slate-300">|</span>
+                    <span>Комиссия: <span className="text-orange-500 ml-1">−{Math.round(totalCommission).toLocaleString()} ₽</span></span>
+                  </>}
                 </div>
               </div>
 

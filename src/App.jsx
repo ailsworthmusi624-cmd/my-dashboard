@@ -13,14 +13,30 @@ const AiSearchBarInline = () => {
   const [answer, setAnswer] = React.useState('');
   const [open, setOpen] = React.useState(false);
 
+  const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY;
+
   const ask = async () => {
-    if (!q.trim()) return;
+    if (!q.trim() || !GEMINI_KEY) { setAnswer('Нет ключа VITE_GEMINI_KEY'); setOpen(true); return; }
     setLoading(true);
     setOpen(true);
     try {
       const state = useAppStore.getState();
-      const res = await askSmartAssistant(q, state);
-      setAnswer(res[0]?.text || 'Нет ответа');
+      const journal = state.journal || [];
+      const expenses = state.expenses || [];
+      let revenue = 0;
+      journal.forEach(e => {
+        (e.services||[]).forEach(s => { revenue += Number(s.amount)||0; });
+        (e.goods||[]).forEach(g => { revenue += Number(g.amount)||0; });
+      });
+      const totalExpenses = expenses.reduce((s, e) => s + (Number(e.amount)||0), 0);
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: `Ты финансовый ассистент салона красоты Freedom. Данные: Выручка ${revenue}₽, Расходы ${totalExpenses}₽. Вопрос: ${q}. Ответь кратко, 2-3 предложения.` }] }] })
+      });
+      const data = await res.json();
+      setAnswer(data.candidates?.[0]?.content?.parts?.[0]?.text || 'Нет ответа');
     } catch { setAnswer('Ошибка AI'); }
     setLoading(false);
   };
@@ -72,7 +88,8 @@ const SafeWithdrawalBadge = () => {
   return (
     <div className="flex items-center gap-1.5 bg-emerald-500 text-white rounded-xl px-3 py-1.5 shrink-0">
       <Wallet size={12}/>
-      <span className="text-xs font-black">{Math.round(safe).toLocaleString('ru')} ₽</span>
+      <span className="text-xs font-black hidden sm:inline">{Math.round(safe).toLocaleString('ru')} ₽</span>
+      <span className="text-xs font-black sm:hidden">{Math.round(safe/1000)}к ₽</span>
     </div>
   );
 };
@@ -244,9 +261,9 @@ function App() {
         {/* MOBILE HEADER */}
         <header className="lg:hidden bg-white border-b border-slate-100 px-4 py-3 z-20 shrink-0">
           <WorkspaceSwitcher />
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex items-center gap-2 mt-2 min-w-0">
             <h1 className="text-lg font-black tracking-tight text-slate-900 shrink-0">Freedom.</h1>
-            <AiSearchBarInline />
+            <div className="flex-1 min-w-0 overflow-hidden"><AiSearchBarInline /></div>
             <SafeWithdrawalBadge />
           </div>
         </header>
