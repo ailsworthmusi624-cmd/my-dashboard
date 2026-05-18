@@ -193,16 +193,16 @@ function App() {
 
   // Переключатель рабочих пространств (используется и в мобильной шапке, и в десктопном сайдбаре)
   const WorkspaceSwitcher = () => (
-    <div className="flex bg-slate-100 p-1 rounded-2xl">
+    <div className="glass-inner rounded-full p-1 flex items-center">
       <button
         onClick={() => navigate('personal')}
-        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all ${workspace === 'personal' ? 'bg-[#2A9D8F] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold transition-all ${workspace === 'personal' ? 'bg-white text-primary shadow-sm rounded-full' : 'text-on-surface-variant rounded-full'}`}
       >
         <Wallet size={16}/> Финансы
       </button>
       <button
         onClick={() => navigate('salon')}
-        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all ${workspace === 'salon' ? 'bg-[#2A9D8F] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold transition-all ${workspace === 'salon' ? 'bg-white text-primary shadow-sm rounded-full' : 'text-on-surface-variant rounded-full'}`}
       >
         <Scissors size={16}/> Салон
       </button>
@@ -262,9 +262,15 @@ function App() {
 
   return (
     <div className="h-[100svh] flex overflow-hidden font-sans text-slate-900 bg-slate-50">
-      
+
+      {/* Ambient Background */}
+      <div className="fixed inset-0 z-[-1] pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary/10 rounded-full blur-[100px]" />
+        <div className="absolute bottom-[20%] left-[-20%] w-[600px] h-[600px] bg-[#4fdbc8]/10 rounded-full blur-[120px]" />
+      </div>
+
       {/* ─── DESKTOP SIDEBAR ─── */}
-      <aside className="hidden lg:flex w-72 bg-white/40 backdrop-blur-2xl border-r border-white/40 flex-col z-20">
+      <aside className="hidden lg:flex w-72 border-r border-white/20 flex-col z-20" style={{background: 'rgba(255,255,255,0.45)', backdropFilter: 'blur(24px)'}}>
         <div className="p-6">
           <h1 className="text-2xl font-black tracking-tight text-slate-900 mb-6">Freedom.</h1>
           <WorkspaceSwitcher />
@@ -275,7 +281,7 @@ function App() {
             <button
               key={tab.id}
               onClick={() => navigate(workspace, tab.id)}
-              className={`w-full flex items-center gap-3 p-4 rounded-2xl font-bold text-sm transition-all ${activeTab === tab.id ? (workspace === 'personal' ? 'bg-slate-900/90 backdrop-blur-sm text-white shadow-md' : 'bg-emerald-50/80 backdrop-blur-sm text-emerald-700') : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
+              className={`w-full flex items-center gap-3 p-4 rounded-2xl font-bold text-sm transition-all ${activeTab === tab.id ? 'bg-primary-container/80 text-on-primary-container shadow-sm' : 'text-on-surface-variant hover:bg-white/40'}`}
             >
               {tab.icon} {tab.label}
             </button>
@@ -283,7 +289,7 @@ function App() {
         </nav>
 
         <div className="p-6 border-t border-slate-100">
-          <button className={`w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.02] ${workspace === 'personal' ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200' : 'bg-[#2A9D8F] hover:bg-[#1f7268] shadow-[#2A9D8F]/30'}`}>
+          <button className="w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg bg-primary hover:bg-primary/90 transition-all hover:scale-[1.02]">
             <Plus size={20}/> 
             {workspace === 'personal' ? 'Добавить долг' : 'Новая запись'}
           </button>
@@ -294,11 +300,17 @@ function App() {
       <div className="flex-1 flex flex-col h-full relative overflow-hidden">
         
         {/* MOBILE HEADER */}
-        <header className="lg:hidden bg-white px-4 py-3 z-20 shrink-0">
+        <header className="glass-header lg:hidden px-6 py-4 flex flex-col gap-3 sticky top-0 z-50 shrink-0">
           <WorkspaceSwitcher />
-          <div className="flex items-center gap-2 mt-2 min-w-0">
-            <h1 className="text-lg font-black tracking-tight text-slate-900 shrink-0">Freedom.</h1>
-            <div className="flex-1 min-w-0 overflow-hidden"><AiSearchBarInline /></div>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative flex-1 min-w-0">
+              <input
+                placeholder="Спросить AI..."
+                className="w-full bg-white/40 border border-white/20 text-on-surface placeholder:text-on-surface-variant/60 rounded-full py-2.5 pl-10 pr-4 outline-none focus:ring-2 focus:ring-primary/50 transition-shadow text-sm font-medium"
+                readOnly
+              />
+              <Sparkles size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-primary/70" />
+            </div>
             <SafeWithdrawalBadge />
           </div>
         </header>
@@ -347,14 +359,21 @@ function App() {
         </main>
 
         {/* ─── MOBILE BOTTOM TAB BAR ─── */}
-        <nav className="lg:hidden fixed bottom-3 left-3 right-3 bg-white/20 backdrop-blur-2xl border border-white/30 z-50 px-4 pb-[env(safe-area-inset-bottom)] flex justify-around items-center h-[64px] rounded-[28px] shadow-2xl">
+        <nav className="glass-card lg:hidden fixed bottom-6 left-6 right-6 z-50 flex justify-around items-center h-[72px] px-2 shadow-xl">
           {currentTabs.map(tab => (
-            <button key={tab.id} onClick={() => navigate(workspace, tab.id)} className={`flex flex-col items-center justify-center flex-1 gap-1.5 transition-colors ${activeTab === tab.id ? 'text-[#2A9D8F]' : 'text-slate-600'}`}>
+            <button
+              key={tab.id}
+              onClick={() => navigate(workspace, tab.id)}
+              className={`flex flex-col items-center justify-center px-4 py-2 rounded-2xl transition-all active:scale-95 ${
+                activeTab === tab.id
+                  ? 'bg-primary-container/90 text-on-primary-container scale-105'
+                  : 'text-on-surface-variant/70 hover:bg-white/20'
+              }`}
+            >
               {tab.icon}
-              <span className="text-[9px] font-black truncate text-center">{tab.label}</span>
+              <span className="text-[11px] font-medium mt-1">{tab.label}</span>
             </button>
           ))}
-
         </nav>
 
       </div>

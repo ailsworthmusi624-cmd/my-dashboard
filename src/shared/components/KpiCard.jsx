@@ -1,16 +1,16 @@
 import React from 'react';
 
-export default function KpiCard({ title, value, subValue, color = "text-slate-900", bg = "bg-white", textInverse = false }) {
+export default function KpiCard({ title, value, subValue, color, bg, textInverse }) {
   return (
-    <div className={`${bg} p-5 md:p-6 rounded-3xl ${textInverse ? '' : 'border-0'} shadow-sm`}>
-      <div className={`text-[10px] font-black uppercase tracking-widest mb-2 ${textInverse ? 'opacity-70 text-white' : 'text-slate-400'}`}>
+    <div className={`${bg || 'glass-card'} p-5 md:p-6`}>
+      <div className={`text-[10px] font-semibold uppercase tracking-wider mb-2 ${textInverse ? 'text-white/70' : 'text-on-surface-variant/70'}`}>
         {title}
       </div>
-      <div className={`text-2xl md:text-3xl font-black truncate ${textInverse ? 'text-white' : color}`}>
+      <div className={`font-bold truncate ${textInverse ? 'text-white' : color || 'text-on-surface'}`} style={{fontSize: 'clamp(14px, 4vw, 24px)'}}>
         {value}
       </div>
       {subValue && (
-        <div className={`text-[10px] md:text-[11px] mt-2 font-medium ${textInverse ? 'text-white/80' : 'text-slate-400'}`}>
+        <div className={`text-[11px] mt-1.5 font-medium ${textInverse ? 'text-white/70' : 'text-on-surface-variant/60'}`}>
           {subValue}
         </div>
       )}

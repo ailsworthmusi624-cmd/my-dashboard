@@ -116,7 +116,7 @@ export default function Masters() {
       {/* ─── ШАПКА ФИЛЬТРА ДАТ ─── */}
       <div className="bg-white/80 backdrop-blur-xl p-4 md:p-6 rounded-[24px] md:rounded-[32px] border border-white/20 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-purple-600 text-white rounded-[16px] flex items-center justify-center shrink-0 shadow-lg shadow-purple-200">
+          <div className="w-12 h-12 bg-primary text-white rounded-[16px] flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
             <Users size={24} />
           </div>
           <div>
@@ -141,10 +141,10 @@ export default function Masters() {
         <div className="bg-white/60 backdrop-blur-xl p-6 rounded-[32px] border border-white/80 shadow-sm animate-in slide-in-from-top-4">
           <h3 className="font-black text-lg text-slate-900 mb-4">Новый мастер</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Имя</label><input type="text" value={newMaster.name} onChange={e => setNewMaster({...newMaster, name: e.target.value})} placeholder="Анна" className="w-full bg-slate-50 border border-slate-100 text-slate-900 font-bold rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 ring-purple-300" /></div>
-            <div><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Должность</label><input type="text" value={newMaster.role} onChange={e => setNewMaster({...newMaster, role: e.target.value})} placeholder="Мастер" className="w-full bg-slate-50 border border-slate-100 text-slate-900 font-bold rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 ring-purple-300" /></div>
-            <div><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Ставка (%)</label><input type="number" value={newMaster.rate1} onChange={e => setNewMaster({...newMaster, rate1: e.target.value})} placeholder="40" className="w-full bg-slate-50 border border-slate-100 text-slate-900 font-bold rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 ring-purple-300" /></div>
-            <div><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Личный план (₽)</label><input type="number" value={newMaster.plan} onChange={e => setNewMaster({...newMaster, plan: e.target.value})} placeholder="150000" className="w-full bg-slate-50 border border-slate-100 text-slate-900 font-bold rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 ring-purple-300" /></div>
+            <div><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Имя</label><input type="text" value={newMaster.name} onChange={e => setNewMaster({...newMaster, name: e.target.value})} placeholder="Анна" className="w-full bg-slate-50 border border-slate-100 text-slate-900 font-bold rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 ring-primary/30" /></div>
+            <div><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Должность</label><input type="text" value={newMaster.role} onChange={e => setNewMaster({...newMaster, role: e.target.value})} placeholder="Мастер" className="w-full bg-slate-50 border border-slate-100 text-slate-900 font-bold rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 ring-primary/30" /></div>
+            <div><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Ставка (%)</label><input type="number" value={newMaster.rate1} onChange={e => setNewMaster({...newMaster, rate1: e.target.value})} placeholder="40" className="w-full bg-slate-50 border border-slate-100 text-slate-900 font-bold rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 ring-primary/30" /></div>
+            <div><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Личный план (₽)</label><input type="number" value={newMaster.plan} onChange={e => setNewMaster({...newMaster, plan: e.target.value})} placeholder="150000" className="w-full bg-slate-50 border border-slate-100 text-slate-900 font-bold rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 ring-primary/30" /></div>
           </div>
           <button onClick={handleAddMaster} className="bg-[#2A9D8F] text-white px-6 py-3 rounded-2xl font-bold shadow-md hover:bg-[#1f7268] transition-colors w-full md:w-auto">Сохранить мастера</button>
         </div>

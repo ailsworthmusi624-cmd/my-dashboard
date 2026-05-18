@@ -64,19 +64,19 @@ export default function Expenses() {
           </div>
         </div>
         <div className="flex flex-col md:flex-row items-center gap-4">
-          <div className="flex items-center gap-2 bg-white rounded-2xl border-0 p-1.5 shadow-sm w-full md:w-auto">
+          <div className="flex items-center gap-2 glass-inner rounded-2xl p-1.5 w-full md:w-auto">
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
             <span className="text-slate-300 font-bold">—</span>
             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
           </div>
-          <button onClick={() => setIsAdding(!isAdding)} className="bg-[#2A9D8F] text-white px-5 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#2A9D8F]/30 hover:bg-[#1f7268] transition-colors w-full md:w-auto">
+          <button onClick={() => setIsAdding(!isAdding)} className="bg-primary text-on-primary px-5 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg hover:bg-primary/90 transition-colors w-full md:w-auto">
             <Plus size={20}/> {isAdding ? 'Отмена' : 'Добавить расход'}
           </button>
         </div>
       </div>
 
       {isAdding && (
-        <div className="bg-[#2A9D8F]/10 p-5 rounded-2xl border-0 animate-in slide-in-from-top-4">
+        <div className="glass-inner p-5 rounded-2xl animate-in slide-in-from-top-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <div>
               <label className="text-[10px] uppercase font-black text-slate-400 ml-1 mb-1.5 block tracking-widest">Дата</label>
@@ -99,13 +99,13 @@ export default function Expenses() {
               <input type="text" placeholder="За что оплата?" className="w-full bg-white p-3.5 rounded-2xl font-bold text-slate-900 outline-none focus:ring-2 ring-purple-200" value={comment} onChange={e => setComment(e.target.value)} />
             </div>
           </div>
-          <button onClick={handleAdd} className="w-full bg-[#2A9D8F] text-white p-4 rounded-2xl font-black shadow-md hover:bg-[#1f7268] transition-colors">Сохранить</button>
+          <button onClick={handleAdd} className="w-full bg-primary text-on-primary p-4 rounded-2xl font-black shadow-md hover:bg-primary/90 transition-colors">Сохранить</button>
         </div>
       )}
 
       {/* ─── АНАЛИТИКА ─── */}
       {expensesByCategory.length > 0 && (
-        <div onClick={() => setIsTrendOpen(true)} className="bg-white rounded-3xl border-0 p-6 md:p-8 shadow-sm cursor-pointer hover:shadow-md transition-all">
+        <div onClick={() => setIsTrendOpen(true)} className="glass-card p-6 md:p-8 cursor-pointer hover:shadow-md transition-all">
           <h3 className="font-black text-xl text-slate-900 mb-6">Структура расходов</h3>
           <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden flex mb-6">
             {expensesByCategory.map(cat => <div key={cat.category} className={`${cat.color} h-full transition-all`} style={{ width: `${cat.percent}%` }} />)}
@@ -118,12 +118,12 @@ export default function Expenses() {
         </div>
       )}
 
-      <div className="bg-white rounded-3xl border-0 shadow-sm p-4 md:p-8 space-y-3">
+      <div className="glass-card p-4 md:p-8 space-y-3">
         {fExpenses.length === 0 ? (
           <div className="text-center py-12"><div className="text-4xl mb-3">💸</div><p className="font-bold text-slate-400">Расходов пока нет.</p></div>
         ) : (
           fExpenses.sort((a,b) => new Date(b.date) - new Date(a.date)).map(exp => (
-            <div key={exp.id} className="flex justify-between items-center p-4 md:p-5 rounded-2xl border-0 bg-[#f8fafb] hover:bg-slate-100/80 transition-all group">
+            <div key={exp.id} className="flex justify-between items-center p-4 md:p-5 rounded-2xl glass-inner hover:bg-white/30 transition-all group">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-red-400 shadow-sm"><Tag size={18} /></div>
                 <div>
@@ -143,14 +143,14 @@ export default function Expenses() {
       {/* ─── МОДАЛКА ТЕНДЕНЦИИ РАСХОДОВ ─── */}
       {isTrendOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-lg shadow-2xl border-0">
+          <div className="glass-card p-6 md:p-8 w-full max-w-lg shadow-2xl">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-black text-slate-900">Тенденция расходов</h3>
               <button onClick={() => setIsTrendOpen(false)} className="w-8 h-8 flex items-center justify-center bg-slate-50 text-slate-400 rounded-full hover:bg-slate-100"><X size={18}/></button>
             </div>
             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
               {expenseTrends.map(t => (
-                 <div key={t.month} className="flex justify-between items-center p-4 bg-[#f8fafb] rounded-2xl border-0">
+                 <div key={t.month} className="flex justify-between items-center p-4 glass-inner rounded-2xl">
                    <span className="font-bold text-slate-700">{t.month}</span>
                    <span className="font-black text-rose-500">{fmt(t.total)}</span>
                  </div>
