@@ -7,42 +7,46 @@ import {
 import useAppStore, { initFirebaseSync } from './store/useAppStore';
 import { askSmartAssistant } from './shared/utils/aiService';
 
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY;
+
 const AiSearchBarInline = () => {
   const [q, setQ] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [answer, setAnswer] = React.useState('');
   const [open, setOpen] = React.useState(false);
 
-  const GEMINI_KEY = import.meta.env.VITE_GEMINI_KEY;
-
   const ask = async () => {
-    if (!q.trim() || !GEMINI_KEY) { setAnswer('Нет ключа VITE_GEMINI_KEY'); setOpen(true); return; }
-    setLoading(true);
-    setOpen(true);
+    if (!q.trim() || !GEMINI_KEY) { setAnswer('Нет API ключа (VITE_GEMINI_KEY)'); setOpen(true); return; }
+    setLoading(true); setOpen(true); setAnswer('');
     try {
       const state = useAppStore.getState();
       const journal = state.journal || [];
       const expenses = state.expenses || [];
-      let revenue = 0;
+      let revenue = 0, payroll = 0;
       journal.forEach(e => {
-        (e.services||[]).forEach(s => { revenue += Number(s.amount)||0; });
-        (e.goods||[]).forEach(g => { revenue += Number(g.amount)||0; });
+        (e.services||[]).forEach(s => { const a = Number(s.amount)||0; revenue += a; payroll += a*(Number(s.rate)||0)/100; });
       });
-      const totalExpenses = expenses.reduce((s, e) => s + (Number(e.amount)||0), 0);
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: `Ты финансовый ассистент салона красоты Freedom. Данные: Выручка ${revenue}₽, Расходы ${totalExpenses}₽. Вопрос: ${q}. Ответь кратко, 2-3 предложения.` }] }] })
-      });
+      const totalExpenses = expenses.reduce((s,e) => s + (Number(e.amount)||0), 0);
+      const net = revenue - payroll - totalExpenses;
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `Ты финансовый ассистент салона красоты Freedom. Данные за месяц: Выручка ${revenue.toLocaleString('ru')}₽, ФОТ ${payroll.toLocaleString('ru')}₽, Расходы ${totalExpenses.toLocaleString('ru')}₽, Чистая прибыль ~${net.toLocaleString('ru')}₽. Вопрос пользователя: "${q}". Ответь кратко по-русски, 2-3 предложения.` }] }]
+          })
+        }
+      );
       const data = await res.json();
       setAnswer(data.candidates?.[0]?.content?.parts?.[0]?.text || 'Нет ответа');
-    } catch { setAnswer('Ошибка AI'); }
+    } catch(e) { setAnswer('Ошибка запроса к AI'); }
     setLoading(false);
   };
 
   return (
-    <div className="flex-1 relative">
+    <div className="flex-1 min-w-0 relative">
       <div className="flex items-center bg-slate-100 rounded-xl px-3 py-1.5 gap-2">
         <Sparkles size={12} className="text-purple-400 shrink-0"/>
         <input
@@ -50,13 +54,14 @@ const AiSearchBarInline = () => {
           onChange={e => setQ(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && ask()}
           placeholder="Спросить AI..."
-          className="bg-transparent text-xs font-medium outline-none flex-1 text-slate-700 placeholder-slate-400"
+          className="bg-transparent text-xs font-medium outline-none flex-1 min-w-0 text-slate-700 placeholder-slate-400"
         />
+        {loading && <Loader2 size={12} className="animate-spin text-purple-400 shrink-0"/>}
       </div>
-      {open && (
-        <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-100 rounded-2xl p-3 shadow-xl z-50 text-xs text-slate-700 font-medium">
-          {loading ? 'Думаю...' : answer}
-          <button onClick={() => { setOpen(false); setQ(''); }} className="ml-2 text-slate-400 font-bold">✕</button>
+      {open && answer && (
+        <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-2xl p-3 shadow-xl z-50 text-xs text-slate-700 leading-relaxed">
+          {answer}
+          <button onClick={() => { setOpen(false); setQ(''); setAnswer(''); }} className="block mt-2 text-slate-400 font-bold text-[10px]">✕ Закрыть</button>
         </div>
       )}
     </div>
@@ -119,8 +124,18 @@ function App() {
   };
 
   // Глобальный роутер
-  const [workspace, setWorkspace] = useState('personal'); // 'personal' | 'salon'
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const getInitialState = () => {
+    const hash = window.location.hash.replace('#', '');
+    const [ws, tab] = hash.split('/');
+    const validWs = ['personal', 'salon'].includes(ws) ? ws : 'salon';
+    const validTabs = { personal: ['dashboard','analytics','calculators','investing'], salon: ['dashboard','appointments','expenses','pnl','masters'] };
+    const validTab = validTabs[validWs]?.includes(tab) ? tab : 'dashboard';
+    return { workspace: validWs, activeTab: validTab };
+  };
+
+  const initial = getInitialState();
+  const [workspace, setWorkspace] = useState(initial.workspace);
+  const [activeTab, setActiveTab] = useState(initial.activeTab);
 
   // Подключаем стор безопасно (с fallback на пустой массив)
   const debts = useAppStore(s => s.debts ?? []);
@@ -133,10 +148,30 @@ function App() {
   const isLoading = useAppStore(s => s.isLoading);
   const isLocalFallback = useAppStore(s => s.isLocalFallback);
 
-  // Сброс вкладки при смене рабочего пространства
+  // Синхронизация URL при смене вкладки
   useEffect(() => {
-    setActiveTab('dashboard');
-  }, [workspace]);
+    window.location.hash = `${workspace}/${activeTab}`;
+  }, [workspace, activeTab]);
+
+  // Обработка кнопки "Назад"
+  useEffect(() => {
+    const onPop = () => {
+      const { workspace: ws, activeTab: tab } = getInitialState();
+      setWorkspace(ws);
+      setActiveTab(tab);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const navigate = (ws, tab = 'dashboard') => {
+    const newHash = `${ws}/${tab}`;
+    if (window.location.hash !== '#' + newHash) {
+      window.history.pushState(null, '', '#' + newHash);
+    }
+    setWorkspace(ws);
+    setActiveTab(tab);
+  };
 
   const personalTabs = [
     { id: 'dashboard', icon: <LayoutDashboard size={22} />, label: 'Дашборд' },
@@ -159,14 +194,14 @@ function App() {
   // Переключатель рабочих пространств (используется и в мобильной шапке, и в десктопном сайдбаре)
   const WorkspaceSwitcher = () => (
     <div className="flex bg-black/5 backdrop-blur-md p-1 rounded-xl">
-      <button 
-        onClick={() => setWorkspace('personal')} 
+      <button
+        onClick={() => navigate('personal')}
         className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${workspace === 'personal' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
       >
         <Wallet size={16}/> Финансы
       </button>
-      <button 
-        onClick={() => setWorkspace('salon')} 
+      <button
+        onClick={() => navigate('salon')}
         className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${workspace === 'salon' ? 'bg-white shadow-sm text-purple-700' : 'text-slate-500 hover:text-slate-700'}`}
       >
         <Scissors size={16}/> Салон
@@ -237,9 +272,9 @@ function App() {
         
         <nav className="flex-1 px-4 space-y-1">
           {currentTabs.map(tab => (
-            <button 
-              key={tab.id} 
-              onClick={() => setActiveTab(tab.id)}
+            <button
+              key={tab.id}
+              onClick={() => navigate(workspace, tab.id)}
               className={`w-full flex items-center gap-3 p-4 rounded-2xl font-bold text-sm transition-all ${activeTab === tab.id ? (workspace === 'personal' ? 'bg-slate-900/90 backdrop-blur-sm text-white shadow-md' : 'bg-emerald-50/80 backdrop-blur-sm text-emerald-700') : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
             >
               {tab.icon} {tab.label}
@@ -314,7 +349,7 @@ function App() {
         {/* ─── MOBILE BOTTOM TAB BAR ─── */}
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/70 backdrop-blur-xl border-t border-white/80 z-50 px-2 pb-[env(safe-area-inset-bottom)] flex justify-around items-center h-[72px] shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
           {currentTabs.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex flex-col items-center justify-center flex-1 gap-1.5 transition-colors ${activeTab === tab.id ? (workspace === 'personal' ? 'text-slate-900' : 'text-purple-600') : 'text-slate-400 hover:text-slate-500'}`}>
+            <button key={tab.id} onClick={() => navigate(workspace, tab.id)} className={`flex flex-col items-center justify-center flex-1 gap-1.5 transition-colors ${activeTab === tab.id ? (workspace === 'personal' ? 'text-slate-900' : 'text-purple-600') : 'text-slate-400 hover:text-slate-500'}`}>
               {tab.icon}
               <span className="text-[9px] font-black truncate text-center">{tab.label}</span>
             </button>
