@@ -2,7 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --accent: #2A9D8F;
+  --accent-dark: #1f7268;
+  --bg-page: #f8fafb;
+}
+
 body {
-  background: linear-gradient(135deg, #f0f4f8 0%, #e8eef5 50%, #eef2f7 100%);
+  background: var(--bg-page);
   min-height: 100svh;
 }

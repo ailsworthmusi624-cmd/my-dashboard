@@ -95,9 +95,9 @@ export default function PnL() {
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-300">
 
       {/* Header */}
-      <div className="bg-white/60 backdrop-blur-xl p-4 md:p-6 rounded-[24px] md:rounded-[32px] border border-white/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl border-0 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-[16px] flex items-center justify-center shrink-0 shadow-sm">
+          <div className="w-12 h-12 bg-[#2A9D8F]/10 text-[#2A9D8F] rounded-[16px] flex items-center justify-center shrink-0 shadow-sm">
             <BarChart3 size={24} />
           </div>
           <div>
@@ -105,7 +105,7 @@ export default function PnL() {
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Отчет о прибылях и убытках</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 bg-white/60 backdrop-blur-xl border border-white/80 rounded-2xl p-1.5 shadow-sm">
+        <div className="flex items-center gap-2 bg-white border-0 rounded-2xl p-1.5 shadow-sm">
           <input 
             type="month" 
             value={monthStr} 
@@ -116,7 +116,7 @@ export default function PnL() {
       </div>
 
       {/* Table */}
-      <div className="bg-white/60 backdrop-blur-xl rounded-[32px] border border-white/80 shadow-sm overflow-hidden p-6 md:p-10 space-y-8">
+      <div className="bg-white rounded-3xl border-0 shadow-sm overflow-hidden p-6 md:p-10 space-y-8">
         
         <section>
           <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 px-2">01. Доходы</h3>
@@ -124,7 +124,7 @@ export default function PnL() {
           <TableRow label="Продажа товаров" value={metrics.goodsRevenue} />
           <TableRow label="Себестоимость товаров" value={metrics.cogs} isNegative />
           <TableRow label="Комиссия банка (2.5%)" value={metrics.bankCommission} isNegative />
-          <TableRow label="Валовая прибыль" value={metrics.grossProfit} isBold color="text-indigo-600" />
+          <TableRow label="Валовая прибыль" value={metrics.grossProfit} isBold color="text-[#2A9D8F]" />
         </section>
 
         <section>
@@ -136,7 +136,7 @@ export default function PnL() {
           <TableRow label="Реклама" value={metrics.marketing} />
           <TableRow label="ЗП Управляющего" value={metrics.managerSalary} />
           <TableRow label="Прочие расходы" value={metrics.other} />
-          <div className="flex justify-between items-center py-4 px-4 bg-white/30 rounded-2xl mt-4 border border-white/80">
+          <div className="flex justify-between items-center py-4 px-4 bg-[#f8fafb] rounded-2xl mt-4 border-0">
             <span className="text-sm font-black text-slate-900">ИТОГО РАСХОДЫ</span>
             <span className="font-mono text-sm md:text-base font-black text-rose-600">-{fmt(metrics.totalExpenses)}</span>
           </div>
@@ -153,8 +153,8 @@ export default function PnL() {
             <span className="font-mono text-4xl md:text-5xl font-black">{fmt(metrics.netProfit)}</span>
           </div>
 
-          <div className="p-6 bg-white/30 rounded-[24px] border border-white/80 flex items-center gap-4">
-            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm"><TrendingUp size={24}/></div>
+          <div className="p-6 bg-[#f8fafb] rounded-2xl border-0 flex items-center gap-4">
+            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-[#2A9D8F] shadow-sm"><TrendingUp size={24}/></div>
             <div>
               <div className="text-[10px] font-black uppercase text-slate-400 mb-1">Рентабельность (Маржинальность)</div>
               <div className="text-2xl font-black font-mono text-slate-900">{metrics.margin.toFixed(1)}%</div>

@@ -31,7 +31,7 @@ export default function Analytics() {
       </div>
 
       {/* ─── СТРУКТУРА ДОЛГА (ТАЙЛВИНД БАР) ─── */}
-      <div className="bg-white/60 backdrop-blur-xl rounded-[24px] md:rounded-[40px] border border-white/80 shadow-sm p-6 md:p-8">
+      <div className="bg-white rounded-3xl border-0 shadow-sm p-6 md:p-8">
         <h3 className="font-black text-xl text-slate-900 mb-6 flex items-center gap-2"><Wallet size={20} className="text-emerald-500"/> Структура долга</h3>
         
         {totalDebt === 0 ? (
@@ -65,7 +65,7 @@ export default function Analytics() {
       </div>
 
       {/* ─── АНТИ-РЕЙТИНГ ПО СТАВКАМ ─── */}
-      <div className="bg-white/60 backdrop-blur-xl rounded-[24px] md:rounded-[40px] border border-white/80 shadow-sm p-6 md:p-8">
+      <div className="bg-white rounded-3xl border-0 shadow-sm p-6 md:p-8">
         <h3 className="font-black text-xl text-slate-900 mb-6 flex items-center gap-2"><Flame size={20} className="text-red-500"/> Токсичные долги (по ставке)</h3>
         <div className="space-y-3">
           {sortedByRate.map(d => (

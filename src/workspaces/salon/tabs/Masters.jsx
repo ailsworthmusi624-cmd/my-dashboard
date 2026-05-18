@@ -130,7 +130,7 @@ export default function Masters() {
             <span className="text-slate-300 font-bold">—</span>
             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-transparent text-slate-900 text-xs font-bold px-2 py-1.5 outline-none" />
           </div>
-          <button onClick={() => setIsAdding(!isAdding)} className="bg-purple-50 text-purple-600 px-4 py-2.5 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-purple-100 transition-colors w-full sm:w-auto">
+          <button onClick={() => setIsAdding(!isAdding)} className="bg-[#2A9D8F]/10 text-[#2A9D8F] px-4 py-2.5 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-[#2A9D8F]/20 transition-colors w-full sm:w-auto">
             <Plus size={18}/> Добавить
           </button>
         </div>
@@ -146,7 +146,7 @@ export default function Masters() {
             <div><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Ставка (%)</label><input type="number" value={newMaster.rate1} onChange={e => setNewMaster({...newMaster, rate1: e.target.value})} placeholder="40" className="w-full bg-slate-50 border border-slate-100 text-slate-900 font-bold rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 ring-purple-300" /></div>
             <div><label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Личный план (₽)</label><input type="number" value={newMaster.plan} onChange={e => setNewMaster({...newMaster, plan: e.target.value})} placeholder="150000" className="w-full bg-slate-50 border border-slate-100 text-slate-900 font-bold rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 ring-purple-300" /></div>
           </div>
-          <button onClick={handleAddMaster} className="bg-purple-600 text-white px-6 py-3 rounded-2xl font-bold shadow-md hover:bg-purple-700 transition-colors w-full md:w-auto">Сохранить мастера</button>
+          <button onClick={handleAddMaster} className="bg-[#2A9D8F] text-white px-6 py-3 rounded-2xl font-bold shadow-md hover:bg-[#1f7268] transition-colors w-full md:w-auto">Сохранить мастера</button>
         </div>
       )}
 
@@ -154,7 +154,7 @@ export default function Masters() {
         {mastersStats.map(master => {
           const isExpanded = expandedId === master.id;
           return (
-            <div key={master.id} className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-[32px] border border-white/10 shadow-sm transition-all overflow-hidden">
+            <div key={master.id} className="bg-[#0D1117] rounded-[32px] border border-white/10 shadow-sm transition-all overflow-hidden">
               {/* Основная карточка */}
               <div className="p-6 cursor-pointer hover:bg-white/5 transition-colors" onClick={() => setExpandedId(isExpanded ? null : master.id)}>
                 <div className="flex justify-between items-start mb-4">
@@ -183,7 +183,7 @@ export default function Masters() {
 
               {/* Раскрывающаяся часть */}
               {isExpanded && (
-                <div className="p-6 pt-0 border-t border-white/20 flex flex-col gap-4 bg-gradient-to-b from-slate-800/50 to-slate-900/80 backdrop-blur-xl rounded-b-[32px]">
+                <div className="p-6 pt-0 border-t border-white/10 flex flex-col gap-4 bg-[#0D1117]">
                   {/* Настройки мастера */}
                   <div className="grid grid-cols-2 gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/20">
                     <div>

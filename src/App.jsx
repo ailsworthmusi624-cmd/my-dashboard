@@ -193,16 +193,16 @@ function App() {
 
   // Переключатель рабочих пространств (используется и в мобильной шапке, и в десктопном сайдбаре)
   const WorkspaceSwitcher = () => (
-    <div className="flex bg-black/5 backdrop-blur-md p-1 rounded-xl">
+    <div className="flex bg-slate-100 p-1 rounded-2xl">
       <button
         onClick={() => navigate('personal')}
-        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${workspace === 'personal' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all ${workspace === 'personal' ? 'bg-[#2A9D8F] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
       >
         <Wallet size={16}/> Финансы
       </button>
       <button
         onClick={() => navigate('salon')}
-        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${workspace === 'salon' ? 'bg-white shadow-sm text-purple-700' : 'text-slate-500 hover:text-slate-700'}`}
+        className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all ${workspace === 'salon' ? 'bg-[#2A9D8F] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
       >
         <Scissors size={16}/> Салон
       </button>
@@ -283,7 +283,7 @@ function App() {
         </nav>
 
         <div className="p-6 border-t border-slate-100">
-          <button className={`w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.02] ${workspace === 'personal' ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200' : 'bg-purple-600 shadow-purple-200'}`}>
+          <button className={`w-full py-4 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.02] ${workspace === 'personal' ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-200' : 'bg-[#2A9D8F] hover:bg-[#1f7268] shadow-[#2A9D8F]/30'}`}>
             <Plus size={20}/> 
             {workspace === 'personal' ? 'Добавить долг' : 'Новая запись'}
           </button>
@@ -294,7 +294,7 @@ function App() {
       <div className="flex-1 flex flex-col h-full relative overflow-hidden">
         
         {/* MOBILE HEADER */}
-        <header className="lg:hidden bg-white border-b border-slate-100 px-4 py-3 z-20 shrink-0">
+        <header className="lg:hidden bg-white px-4 py-3 z-20 shrink-0">
           <WorkspaceSwitcher />
           <div className="flex items-center gap-2 mt-2 min-w-0">
             <h1 className="text-lg font-black tracking-tight text-slate-900 shrink-0">Freedom.</h1>
@@ -347,9 +347,9 @@ function App() {
         </main>
 
         {/* ─── MOBILE BOTTOM TAB BAR ─── */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/70 backdrop-blur-xl border-t border-white/80 z-50 px-2 pb-[env(safe-area-inset-bottom)] flex justify-around items-center h-[72px] shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
+        <nav className="lg:hidden fixed bottom-3 left-3 right-3 bg-[#0D1117] z-50 px-4 pb-[env(safe-area-inset-bottom)] flex justify-around items-center h-[64px] rounded-[28px] shadow-2xl">
           {currentTabs.map(tab => (
-            <button key={tab.id} onClick={() => navigate(workspace, tab.id)} className={`flex flex-col items-center justify-center flex-1 gap-1.5 transition-colors ${activeTab === tab.id ? (workspace === 'personal' ? 'text-slate-900' : 'text-purple-600') : 'text-slate-400 hover:text-slate-500'}`}>
+            <button key={tab.id} onClick={() => navigate(workspace, tab.id)} className={`flex flex-col items-center justify-center flex-1 gap-1.5 transition-colors ${activeTab === tab.id ? 'text-[#2A9D8F]' : 'text-white/40'}`}>
               {tab.icon}
               <span className="text-[9px] font-black truncate text-center">{tab.label}</span>
             </button>

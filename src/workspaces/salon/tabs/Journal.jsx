@@ -63,7 +63,7 @@ export default function Journal() {
         <h2 className="text-2xl font-black text-slate-900 tracking-tight">Журнал</h2>
         <button 
           onClick={handleNew}
-          className="flex items-center gap-2 bg-purple-600 text-white px-5 py-3 rounded-2xl font-bold shadow-lg shadow-purple-200 hover:bg-purple-700 transition-all active:scale-95"
+          className="flex items-center gap-2 bg-[#2A9D8F] text-white px-5 py-3 rounded-2xl font-bold shadow-lg shadow-[#2A9D8F]/30 hover:bg-[#1f7268] transition-all active:scale-95"
         >
           <Plus size={20} /> <span className="hidden sm:inline">Новая запись</span>
         </button>
@@ -99,14 +99,14 @@ export default function Journal() {
           });
           
           return (
-            <div key={date} className="bg-white/60 backdrop-blur-xl rounded-[32px] p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/80 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div key={date} className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border-0 animate-in fade-in slide-in-from-bottom-2 duration-300">
               
               {/* Заголовок карточки дня со сводной статистикой */}
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5 pb-5 border-b border-slate-100">
                 <h3 className="text-lg font-black text-slate-900 capitalize tracking-tight">
                   {formatDate(date)}
                 </h3>
-                <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-slate-600 bg-white/60 backdrop-blur-sm px-4 py-2.5 rounded-2xl border border-white/80">
+                <div className="flex flex-wrap items-center gap-3 text-xs font-bold text-slate-600 bg-[#f8fafb] px-4 py-2.5 rounded-2xl border-0">
                   <span>Выручка: <span className="text-emerald-600 ml-1">{totalRevenue.toLocaleString()} ₽</span></span>
                   <span className="text-slate-300">|</span>
                   <span>Чеков: <span className="text-slate-900 ml-1">{entries.length}</span></span>
@@ -135,13 +135,13 @@ export default function Journal() {
                   });
 
                   return (
-                    <div key={masterName} className="bg-white/30 rounded-[24px] border border-white/80 overflow-hidden transition-all">
+                    <div key={masterName} className="bg-[#f8fafb] rounded-2xl border-0 overflow-hidden transition-all">
                       <div 
                         onClick={() => toggleMaster(date, masterName)}
                         className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-colors"
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? 'bg-indigo-100 text-indigo-600' : 'bg-white text-slate-400 shadow-sm'}`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? 'bg-[#2A9D8F]/10 text-[#2A9D8F]' : 'bg-white text-slate-400 shadow-sm'}`}>
                              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                           </div>
                           <div className="flex flex-col">
@@ -150,7 +150,7 @@ export default function Journal() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="font-black text-indigo-600">{mRev.toLocaleString()} ₽</div>
+                          <div className="font-black text-[#2A9D8F]">{mRev.toLocaleString()} ₽</div>
                           <div className="text-[10px] font-bold text-rose-500 mt-0.5">ФОТ: {mPay.toLocaleString()} ₽</div>
                         </div>
                       </div>
@@ -219,7 +219,7 @@ export default function Journal() {
                           <div className="p-2 mt-1">
                             <button 
                               onClick={() => handleNewWithMaster(date, masterName)}
-                              className="w-full py-3 bg-indigo-50/50 hover:bg-indigo-100/50 text-indigo-600 border border-indigo-100 border-dashed rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                              className="w-full py-3 bg-[#2A9D8F]/10 hover:bg-[#2A9D8F]/20 text-[#2A9D8F] border border-[#2A9D8F]/20 border-dashed rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
                             >
                               <Plus size={14} /> Добавить чек мастеру {masterName}
                             </button>
@@ -234,8 +234,8 @@ export default function Journal() {
           );
         })}
         {sortedDates.length === 0 && (
-          <div className="text-center py-16 bg-white/60 backdrop-blur-xl rounded-[32px] border border-white/80 border-dashed animate-in fade-in">
-            <div className="w-20 h-20 mx-auto mb-5 rounded-[24px] flex items-center justify-center bg-purple-50 text-purple-400">
+          <div className="text-center py-16 bg-white rounded-3xl border-0 border-dashed animate-in fade-in">
+            <div className="w-20 h-20 mx-auto mb-5 rounded-2xl flex items-center justify-center bg-[#2A9D8F]/10 text-[#2A9D8F]">
               <Calendar size={32} />
             </div>
             <h3 className="text-xl font-black text-slate-900 mb-2">Журнал пуст</h3>
