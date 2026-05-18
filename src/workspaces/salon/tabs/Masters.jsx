@@ -183,9 +183,9 @@ export default function Masters() {
 
               {/* Раскрывающаяся часть */}
               {isExpanded && (
-                <div className="p-6 pt-0 border-t border-white/10 bg-black/20 flex flex-col gap-4">
+                <div className="p-6 pt-0 border-t border-white/20 flex flex-col gap-4 bg-gradient-to-b from-slate-800/50 to-slate-900/80 backdrop-blur-xl rounded-b-[32px]">
                   {/* Настройки мастера */}
-                  <div className="grid grid-cols-2 gap-4 bg-white/10 p-4 rounded-2xl border border-white/20">
+                  <div className="grid grid-cols-2 gap-4 bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/20">
                     <div>
                       <label className="text-[9px] font-black uppercase tracking-widest text-white/60 mb-1 flex items-center gap-1"><Edit3 size={10}/> Ставка (%)</label>
                       <input type="number" value={master.rate1 || ''} onChange={e => updateMaster(master.id, { rate1: Number(e.target.value) })} className="w-full bg-white/10 border border-white/20 text-white font-mono font-bold rounded-xl px-3 py-2 outline-none focus:border-purple-400" />
